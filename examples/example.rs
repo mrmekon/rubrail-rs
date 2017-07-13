@@ -18,7 +18,7 @@
 extern crate rubrail;
 
 use rubrail::Touchbar;
-use rubrail::TouchbarTrait;
+use rubrail::TTouchbar;
 use rubrail::TScrubberData;
 use rubrail::ItemId;
 
