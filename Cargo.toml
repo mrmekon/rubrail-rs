@@ -10,8 +10,6 @@ repository = "https://github.com/mrmekon/rubrail-rs"
 license = "Apache-2.0"
 build = "build.rs"
 
-include = ["examples/example.sh"]
-
 [lib]
 name = "rubrail"
 crate-type = ["rlib", "dylib"]
