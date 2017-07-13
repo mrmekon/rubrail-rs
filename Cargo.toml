@@ -1,0 +1,35 @@
+[package]
+name = "rubrail"
+version = "0.1.0"
+authors = ["Trevor Bentley <mrmekon@gmail.com>"]
+description = "Rubrail is a Rust library for interfacing with the Mac Touch Bar"
+keywords = ["macos", "touchbar", "os x", "mac", "touch bar"]
+categories = ["gui", "hardware-support"]
+homepage = "https://github.com/mrmekon/rubrail-rs"
+repository = "https://github.com/mrmekon/rubrail-rs"
+license = "Apache-2.0"
+build = "build.rs"
+
+include = ["examples/example.sh"]
+
+[lib]
+name = "rubrail"
+crate-type = ["rlib", "dylib"]
+
+[features]
+default = ["private_api"]
+private_api = []
+
+[dependencies]
+log = "0.3.7"
+
+libc = {version = "0.2", optional = true}
+
+[target."cfg(target_os = \"macos\")".dependencies]
+cocoa = "0.8.1"
+objc-foundation = "0.1.1"
+objc_id = "0.1"
+
+[target."cfg(target_os = \"macos\")".dependencies.objc]
+version = "0.2.2"
+features = ["exception"]
