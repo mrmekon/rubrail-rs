@@ -1,4 +1,5 @@
 # Rubrail
+[![Build Status](https://api.travis-ci.org/mrmekon/rubrail-rs.svg?branch=master)](https://travis-ci.org/mrmekon/rubrail-rs)
 
 Rubrail is a Rust library for building Touch Bar interfaces for Mac OS X.
 

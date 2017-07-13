@@ -1,7 +1,4 @@
 fn main() {
-    #[cfg(target_os = "macos")]
-    #[cfg(feature = "private_api")]
-
     // PrivateFramework dir:
     // `xcode-select -p`/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/PrivateFrameworks/
     let xcode_dir = std::process::Command::new("xcode-select")
@@ -13,5 +10,8 @@ fn main() {
     let framework_dir = format!("{}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/PrivateFrameworks/",
                                 xcode_dir);
     println!("XCode PrivateFramework dir: {}", framework_dir);
+
+    #[cfg(target_os = "macos")]
+    #[cfg(feature = "private_api")]
     println!("cargo:rustc-link-search=framework={}", framework_dir);
 }
