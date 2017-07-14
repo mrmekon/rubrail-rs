@@ -14,6 +14,10 @@ Source for following screencast in `examples/example.rs`
 
 `$ cargo test && cargo run --example example_launcher`
 
+## Cargo Crate
+
+[![Crates.io Version](https://img.shields.io/crates/v/rubrail.svg)](https://crates.io/crates/rubrail)
+
 ## Information
 
 ### Warning -- Private APIs
