@@ -66,7 +66,7 @@ pub fn quit() {
 #[cfg(test)]
 mod tests {
     use Touchbar;
-    use interface::TouchbarTrait;
+    use interface::TTouchbar;
     #[test]
     fn test_alloc() {
         let mut tb = Touchbar::alloc("test");

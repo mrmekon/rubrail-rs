@@ -13,8 +13,8 @@ pub trait TScrubberData {
     fn touch(&self, item: ItemId, idx: u32);
 }
 
-pub trait TouchbarTrait {
-    type T: TouchbarTrait;
+pub trait TTouchbar {
+    type T: TTouchbar;
     fn alloc(title: &str) -> Self::T;
     fn set_icon(&self, image: &str) {}
     fn enable(&self) {}

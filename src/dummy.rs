@@ -4,7 +4,7 @@ use super::interface::*;
 pub struct DummyTouchbar {}
 
 #[allow(dead_code)]
-impl TouchbarTrait for DummyTouchbar {
+impl TTouchbar for DummyTouchbar {
     type T = DummyTouchbar;
     fn alloc(_title: &str) -> DummyTouchbar { DummyTouchbar {} }
 }

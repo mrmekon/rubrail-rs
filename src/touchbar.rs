@@ -120,7 +120,7 @@ impl RustTouchbarDelegateWrapper {
     }
 }
 
-impl TouchbarTrait for Touchbar {
+impl TTouchbar for Touchbar {
     type T = Touchbar;
     fn alloc(title: &str) -> Touchbar {
         let objc = ObjcAppDelegate::new().share();
