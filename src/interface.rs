@@ -21,7 +21,7 @@ pub trait TouchbarTrait {
 
     fn create_bar(&mut self) -> BarId {0}
     fn add_items_to_bar(&mut self, bar_id: BarId, items: Vec<ItemId>) {}
-    fn set_bar_as_root(&mut self, bar_id: BarId) {}
+    fn set_bar_as_root(&mut self, bar_id: BarId, close_existing: bool) {}
 
     fn create_popover_item(&mut self, image: Option<&str>,
                            text: Option<&str>, bar_id: BarId) -> ItemId {0}

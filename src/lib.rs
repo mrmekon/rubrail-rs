@@ -56,7 +56,11 @@ pub fn run_forever() {
 pub fn run_forever() { loop {} }
 
 pub fn quit() {
-    std::process::exit(0);
+    unsafe {
+        let cls = objc::runtime::Class::get("NSApplication").unwrap();
+        let app: *mut objc::runtime::Object = msg_send![cls, sharedApplication];
+        let _ = msg_send![app, terminate: 0];
+    }
 }
 
 #[cfg(test)]

@@ -48,12 +48,10 @@ impl TScrubberData for TouchbarHandler {
     }
 }
 
-fn main() {
-    // Initialize OS X application.  A real app should probably not use this.
-    rubrail::init_app();
-
-    // Initialize the touchbar
-    let mut tb = Touchbar::alloc("bar");
+fn populate(bar_rc: Rc<RefCell<Touchbar>>, count: u32) {
+    // Get touchbar from the refcell.  It's wrapped in a cell so
+    // it can be passed around in the button callbacks.
+    let mut tb = (bar_rc).borrow_mut();
 
     // Create the lowest level "root" touchbar
     let barid = tb.create_bar();
@@ -61,8 +59,13 @@ fn main() {
     // Create a quit button for root bar
     let quit_id = tb.create_button(None, Some("Quit"), Box::new(move |_| {rubrail::quit()}));
 
-    // Create an action button for the root bar
-    let button1_id = tb.create_button(None, Some("button"), Box::new(move |_| {}));
+    // Create an action button for the root bar.  When clicked, it will
+    // close the bar and re-create itself.
+    let bar_copy = bar_rc.clone();
+    let text = format!("button{}", count);
+    let button1_id = tb.create_button(None, Some(&text), Box::new(move |_| {
+        populate(bar_copy.clone(), count+1)
+    }));
 
     // Create a text label for the root bar
     let label1_id = tb.create_label("This is a label\nWith two rows");
@@ -111,9 +114,20 @@ fn main() {
     // Layout the root bar
     tb.add_items_to_bar(barid, vec![quit_id, button1_id, popbutton1_id, label1_id, scrubber1_id]);
 
-    // Register the root bar and display it
-    tb.set_bar_as_root(barid);
+    // Register the root bar and display it.
+    tb.set_bar_as_root(barid, true);
     tb.enable();
+}
+
+fn main() {
+    // Initialize OS X application.  A real app should probably not use this.
+    rubrail::init_app();
+
+    // Initialize the touchbar
+    let bar_rc = Rc::new(RefCell::new(Touchbar::alloc("bar")));
+
+    // Populate the touchbar with UI elements
+    populate(bar_rc.clone(), 1);
 
     // Enter OS X application loop.  A real application should probably implement
     // this itself.

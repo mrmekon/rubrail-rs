@@ -154,14 +154,9 @@ impl TouchbarTrait for Touchbar {
         unsafe {
             let app = NSApp();
             let _: () = msg_send![app, setDelegate: self.objc.clone()];
-            //let _: () = msg_send![self.objc, applicationDidFinishLaunching: 0];
         }
     }
 
-//    pub fn add_button() {}
-//    pub fn add_quit_button() {}
-//    pub fn add_label() {}
-    //    pub fn add_slider() {}
     fn create_bar(&mut self) -> BarId {
         unsafe {
             let ident = self.generate_ident();
@@ -204,7 +199,8 @@ impl TouchbarTrait for Touchbar {
     fn add_items_to_bar(&mut self, bar_id: BarId, items: Vec<ItemId>) {
         unsafe {
             let cls = Class::get("NSMutableArray").unwrap();
-            let idents: *mut Object = msg_send![cls, arrayWithCapacity: items.len()];
+            let idents: *mut Object = msg_send![cls, alloc];
+            let idents: *mut Object = msg_send![idents, initWithCapacity: items.len()];
             for item in items {
                 let ident = *self.bar_obj_map.get(&item).unwrap() as *mut Object;
                 let _ : () = msg_send![idents, addObject: ident];
@@ -213,17 +209,17 @@ impl TouchbarTrait for Touchbar {
             let _ : () = msg_send![bar, setDefaultItemIdentifiers: idents];
         }
     }
-    fn set_bar_as_root(&mut self, bar_id: BarId) {
+    fn set_bar_as_root(&mut self, bar_id: BarId, close_existing: bool) {
         unsafe {
             let old_bar: *mut Object = msg_send![self.objc, groupTouchBar];
             if old_bar != nil {
-                // TODO: store in temp place until it's not visible,
-                // delete and replace when it is closed.  otherwise
-                // it forces the bar to close on each update.
-                let visible: bool = msg_send![old_bar, isVisible];
-                info!("DELETING OLD BAR: {}", visible);
                 let cls = Class::get("NSTouchBar").unwrap();
+                if close_existing {
+                    msg_send![cls, minimizeSystemModalFunctionBar: old_bar];
+                }
                 msg_send![cls, dismissSystemModalFunctionBar: old_bar];
+                let old_id = old_bar as BarId;
+                let _ = self.bar_obj_map.remove(&old_id);
             }
             let _ : () = msg_send![self.objc, setGroupTouchBar: bar_id];
             let ident: *mut Object = *self.bar_obj_map.get(&bar_id).unwrap() as *mut Object;
@@ -378,6 +374,7 @@ impl INSObject for ObjcAppDelegate {
             decl.add_ivar::<u64>("_rust_wrapper");
             decl.add_ivar::<u64>("_groupbar");
             decl.add_ivar::<u64>("_groupId");
+            decl.add_ivar::<u64>("_trayItem");
             decl.add_ivar::<u64>("_title");
             decl.add_ivar::<u64>("_icon");
 
@@ -523,11 +520,20 @@ impl INSObject for ObjcAppDelegate {
                 unsafe {
                     DFRSystemModalShowsCloseBoxWhenFrontMost(YES);
 
+                    let old_item_ptr: u64 = *this.get_ivar("_trayItem");
+                    let old_item = old_item_ptr as *mut Object;
+                    if old_item != nil {
+                        let cls = Class::get("NSTouchBarItem").unwrap();
+                        let _ = msg_send![cls, removeSystemTrayItem: old_item];
+                        let _ = msg_send![old_item, release];
+                    }
+
                     let ident_int: u64 = *this.get_ivar("_groupId");
                     let ident = ident_int as *mut Object;
                     let cls = Class::get("NSCustomTouchBarItem").unwrap();
                     let item: *mut Object = msg_send![cls, alloc];
                     msg_send![item, initWithIdentifier:ident];
+                    this.set_ivar("_trayItem", item as u64);
 
                     let cls = Class::get("NSButton").unwrap();
                     let icon_ptr: u64 = *this.get_ivar("_icon");
@@ -550,7 +556,6 @@ impl INSObject for ObjcAppDelegate {
                     let cls = Class::get("NSTouchBarItem").unwrap();
                     msg_send![cls, addSystemTrayItem: item];
                     DFRElementSetControlStripPresenceForIdentifier(ident, YES);
-                    println!("made bar");
                 }
             }
 
