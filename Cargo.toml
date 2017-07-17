@@ -17,9 +17,11 @@ crate-type = ["rlib", "dylib"]
 [features]
 default = ["private_api"]
 private_api = []
+objc_wrapper = []
 
 [dependencies]
 log = "0.3.7"
+log4rs = "0.6.3"
 
 libc = {version = "0.2", optional = true}
 

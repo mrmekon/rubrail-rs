@@ -5,6 +5,7 @@ extern crate cocoa;
 
 use super::interface::*;
 
+use std::fmt;
 use std::rc::Rc;
 use std::cell::Cell;
 use std::sync::{Once, ONCE_INIT};
@@ -21,7 +22,15 @@ use self::cocoa::appkit::{NSApp, NSImage};
 use self::objc_id::Id;
 use self::objc_id::Shared;
 
+use super::wrapper::RRTouchBar;
+use super::wrapper::RRCustomTouchBarItem;
+use super::wrapper::RRScrubber;
+use super::wrapper::RRPopoverTouchBarItem;
+use super::wrapper::RRSliderTouchBarItem;
+
 const IDENT_PREFIX: &'static str = "com.trevorbentley.";
+
+pub type Ident = u64;
 
 #[link(name = "DFRFoundation", kind = "framework")]
 extern {
@@ -30,36 +39,104 @@ extern {
 }
 
 #[cfg(feature = "libc")]
-pub mod print_nsstring {
+pub mod util {
     extern crate libc;
     use objc::runtime::Object;
     use std::ffi::CStr;
     #[allow(dead_code)]
-    fn print_nsstring(str: *mut Object) {
+    pub fn print_nsstring(str: *mut Object) {
         unsafe {
             let cstr: *const libc::c_char = msg_send![str, UTF8String];
             let rstr = CStr::from_ptr(cstr).to_string_lossy().into_owned();
             info!("{}", rstr);
         }
     }
+    pub fn nsstring_decode(str: *mut Object) -> String {
+        unsafe {
+            let cstr: *const libc::c_char = msg_send![str, UTF8String];
+            let rstr = CStr::from_ptr(cstr).to_string_lossy().into_owned();
+            rstr
+        }
+    }
+}
+#[cfg(not(feature = "libc"))]
+pub mod util {
+    use objc::runtime::Object;
+    #[allow(dead_code)]
+    pub fn print_nsstring(_str: *mut Object) {}
+    pub fn nsstring_decode(_str: *mut Object) -> String { String::new() }
 }
 
+#[derive(PartialEq, Debug)]
+enum ItemType {
+    Button,
+    Label,
+    Slider,
+    Scrubber,
+    Popover,
+}
 
-struct Scrubber {
-    data: Rc<TScrubberData>,
-    _item: ItemId,
-    _scrubber: ItemId,
-    _ident: Ident,
+struct InternalBar {
+    view: *mut Object,
+    ident: Ident,
+    items: Vec<ItemId>,
+}
+
+impl fmt::Display for InternalBar {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Bar[{}] ({}) <{:x}>",
+               self.items.len(),
+               util::nsstring_decode(self.ident as *mut Object),
+               self.view as u64)
+    }
+}
+
+struct InternalItem {
+    _type: ItemType,
+    view: *mut Object,
+    ident: Ident,
+    control: Option<*mut Object>,
+    scrubber: Option<Rc<TScrubberData>>,
+    button_cb: Option<ButtonCb>,
+    slider_cb: Option<SliderCb>,
+    child_bar: Option<ItemId>,
+}
+
+impl fmt::Display for InternalItem {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?} ({}) <{:x}>", self._type,
+               util::nsstring_decode(self.ident as *mut Object),
+               self.view as u64)
+    }
+}
+
+impl InternalItem {
+    fn free_objc_allocations(&mut self) {
+        unsafe {
+            if let Some(obj) = self.control {
+                // Sliders don't allocate their control
+                if self._type != ItemType::Slider {
+                    let _ = msg_send![obj, release];
+                }
+            }
+            let _ = msg_send![self.view, release];
+            let ident = self.ident as *mut Object;
+            let _ = msg_send![ident, release];
+            self.view = nil;
+            self.ident = 0;
+            self.control = None;
+            self.scrubber = None;
+            self.button_cb = None;
+            self.slider_cb = None;
+        }
+    }
 }
 
 pub struct RustTouchbarDelegateWrapper {
     objc: Id<ObjcAppDelegate, Shared>,
     next_item_id: Cell<u64>,
-    bar_obj_map: BTreeMap<ItemId, Ident>,
-    control_obj_map: BTreeMap<ItemId, ItemId>,
-    scrubber_obj_map: BTreeMap<ItemId, Scrubber>,
-    button_cb_map: BTreeMap<ItemId, ButtonCb>,
-    slider_cb_map: BTreeMap<ItemId, SliderCb>,
+    bar_map: BTreeMap<ItemId, InternalBar>,
+    item_map: BTreeMap<ItemId, InternalItem>,
 }
 pub type Touchbar = Box<RustTouchbarDelegateWrapper>;
 
@@ -115,7 +192,107 @@ impl RustTouchbarDelegateWrapper {
                 }
                 _ => { return nil }
             }
+            if text != nil {
+                let _ = msg_send![text, release];
+            }
+            if image != nil {
+                let _ = msg_send![image, release];
+            }
+            // These are auto-released, so they need an explicit retain
+            let _ = msg_send![btn, retain];
             btn
+        }
+    }
+    fn find_view(&self, ident: Ident) -> Option<*mut Object> {
+        match self.item_map.values().into_iter().filter(|x| {
+            unsafe {
+                let id = ident as *mut Object;
+                let equal: bool = msg_send![id, isEqualToString: x.ident];
+                equal
+            }
+        }).next() {
+            Some(item) => Some(item.view),
+            None => None,
+        }
+    }
+    fn find_bar_ident(&self, bar: &ItemId) -> Option<Ident> {
+        match self.bar_map.values().into_iter().filter(|x| {
+            x.view as ItemId == *bar
+        }).next() {
+            Some(item) => Some(item.ident),
+            None => None,
+        }
+    }
+    fn find_ident(&self, item: &ItemId) -> Option<Ident> {
+        match self.item_map.values().into_iter().filter(|x| {
+            x.view as ItemId == *item
+        }).next() {
+            Some(item) => Some(item.ident),
+            None => None,
+        }
+    }
+    fn find_ident_from_control(&self, item: &ItemId) -> Option<Ident> {
+        match self.item_map.values().into_iter().filter(|x| {
+            x.control.is_some() && x.control.unwrap() as ItemId == *item
+        }).next() {
+            Some(item) => Some(item.ident),
+            None => None,
+        }
+    }
+    fn find_button_cb(&self, btn: u64) -> Option<&ButtonCb> {
+        match self.item_map.values().into_iter().filter(|x| {
+            x._type == ItemType::Button && x.control.unwrap() as u64 == btn
+        }).next() {
+            Some(item) => item.button_cb.as_ref(),
+            None => None,
+        }
+    }
+    fn find_slider_cb(&self, sldr: u64) -> Option<&SliderCb> {
+        match self.item_map.values().into_iter().filter(|x| {
+            x._type == ItemType::Slider && x.view as u64 == sldr
+        }).next() {
+            Some(item) => item.slider_cb.as_ref(),
+            None => None,
+        }
+    }
+    fn find_scrubber(&self, scrubber: u64) -> Option<ItemId> {
+        match self.item_map.values().into_iter().filter(|x| {
+            x._type == ItemType::Scrubber && x.control.unwrap() as u64 == scrubber
+        }).next() {
+            Some(item) => Some(item.view as ItemId),
+            None => None,
+        }
+    }
+    fn find_scrubber_callbacks(&self, scrubber: u64) -> Option<&Rc<TScrubberData>> {
+        match self.item_map.values().into_iter().filter(|x| {
+            x._type == ItemType::Scrubber && x.control.unwrap() as u64 == scrubber
+        }).next() {
+            Some(item) => item.scrubber.as_ref(),
+            None => None,
+        }
+    }
+    fn find_popover(&self, button: u64) -> Option<ItemId> {
+        match self.item_map.values().into_iter().filter(|x| {
+            x._type == ItemType::Popover && x.control.unwrap() as u64 == button
+        }).next() {
+            Some(item) => Some(item.view as ItemId),
+            None => None,
+        }
+    }
+    fn free_bar_allocations(&mut self, bar: *mut Object) {
+        let bar_id = bar as u64;
+        let mut subbars = Vec::<*mut Object>::new();
+        let items = self.bar_map.get(&bar_id).unwrap().items.clone();
+        for item in items.iter() {
+            let mut internal_item = self.item_map.remove(&item).unwrap();
+            if internal_item._type == ItemType::Popover {
+                subbars.push(internal_item.child_bar.unwrap() as *mut Object);
+            }
+            internal_item.free_objc_allocations();
+        }
+        self.bar_map.get_mut(&bar_id).unwrap().items.clear();
+        for subbar in subbars {
+            self.free_bar_allocations(subbar);
         }
     }
 }
@@ -127,17 +304,15 @@ impl TTouchbar for Touchbar {
         let rust = Box::new(RustTouchbarDelegateWrapper {
             objc: objc.clone(),
             next_item_id: Cell::new(0),
-            bar_obj_map: BTreeMap::<ItemId, Ident>::new(),
-            control_obj_map: BTreeMap::<ItemId, ItemId>::new(),
-            scrubber_obj_map: BTreeMap::<ItemId, Scrubber>::new(),
-            button_cb_map: BTreeMap::<ItemId, ButtonCb>::new(),
-            slider_cb_map: BTreeMap::<ItemId, SliderCb>::new(),
+            item_map: BTreeMap::<ItemId, InternalItem>::new(),
+            bar_map: BTreeMap::<ItemId, InternalBar>::new(),
         });
         unsafe {
             let ptr: u64 = &*rust as *const RustTouchbarDelegateWrapper as u64;
             let _ = msg_send![rust.objc, setRustWrapper: ptr];
             let objc_title = NSString::alloc(nil).init_str(title);
             let _ = msg_send![rust.objc, setTitle: objc_title];
+            let _ = msg_send![objc_title, release];
         }
         return rust
     }
@@ -161,22 +336,25 @@ impl TTouchbar for Touchbar {
         unsafe {
             let ident = self.generate_ident();
             // Create touchbar
-            let cls = Class::get("NSTouchBar").unwrap();
+            let cls = RRTouchBar::class();
             let bar: *mut Object = msg_send![cls, alloc];
             let bar: *mut objc::runtime::Object = msg_send![bar, init];
-            let _ : () = msg_send![bar, retain];
             let _ : () = msg_send![bar, setDelegate: self.objc.clone()];
-            // Save tuple
-            self.bar_obj_map.insert(bar as u64, ident as u64);
+            let internal = InternalBar {
+                view: bar,
+                ident: ident,
+                items: Vec::<ItemId>::new(),
+            };
+            self.bar_map.insert(bar as u64, internal);
             bar as u64
         }
     }
     fn create_popover_item(&mut self, image: Option<&str>,
-                           text: Option<&str>, bar_id: BarId) -> ItemId {
+                           text: Option<&str>, bar_id: &BarId) -> ItemId {
         unsafe {
-            let bar = bar_id as *mut Object;
+            let bar = *bar_id as *mut Object;
             let ident = self.generate_ident();
-            let cls = Class::get("NSPopoverTouchBarItem").unwrap();
+            let cls = RRPopoverTouchBarItem::class();
             let item: *mut Object = msg_send![cls, alloc];
             let item: *mut Object = msg_send![item, initWithIdentifier: ident];
 
@@ -191,38 +369,49 @@ impl TTouchbar for Touchbar {
             let _:() = msg_send![item, setPopoverTouchBar: bar];
             let _:() = msg_send![item, setPressAndHoldTouchBar: bar];
 
-            self.bar_obj_map.insert(item as u64, ident as u64);
-            self.control_obj_map.insert(btn as u64, item as u64);
+            let internal = InternalItem {
+                _type: ItemType::Popover,
+                view: item,
+                ident: ident,
+                control: Some(btn),
+                scrubber: None,
+                button_cb: None,
+                slider_cb: None,
+                child_bar: Some(bar as ItemId),
+            };
+            self.item_map.insert(item as u64, internal);
             item as u64
         }
     }
-    fn add_items_to_bar(&mut self, bar_id: BarId, items: Vec<ItemId>) {
+    fn add_items_to_bar(&mut self, bar_id: &BarId, items: Vec<ItemId>) {
         unsafe {
             let cls = Class::get("NSMutableArray").unwrap();
             let idents: *mut Object = msg_send![cls, alloc];
             let idents: *mut Object = msg_send![idents, initWithCapacity: items.len()];
             for item in items {
-                let ident = *self.bar_obj_map.get(&item).unwrap() as *mut Object;
-                let _ : () = msg_send![idents, addObject: ident];
+                if let Some(ident) = self.find_ident(&item) {
+                    let ident = ident as *mut Object;
+                    let _ : () = msg_send![idents, addObject: ident];
+                    self.bar_map.get_mut(&bar_id).unwrap().items.push(item);
+                }
             }
-            let bar = bar_id as *mut Object;
+            let bar = *bar_id as *mut Object;
             let _ : () = msg_send![bar, setDefaultItemIdentifiers: idents];
+            let _ = msg_send![idents, release];
         }
     }
-    fn set_bar_as_root(&mut self, bar_id: BarId, close_existing: bool) {
+    fn set_bar_as_root(&mut self, bar_id: &BarId) {
         unsafe {
             let old_bar: *mut Object = msg_send![self.objc, groupTouchBar];
             if old_bar != nil {
                 let cls = Class::get("NSTouchBar").unwrap();
-                if close_existing {
-                    msg_send![cls, minimizeSystemModalFunctionBar: old_bar];
-                }
+                msg_send![cls, minimizeSystemModalFunctionBar: old_bar];
                 msg_send![cls, dismissSystemModalFunctionBar: old_bar];
-                let old_id = old_bar as BarId;
-                let _ = self.bar_obj_map.remove(&old_id);
+                self.free_bar_allocations(old_bar);
+                msg_send![old_bar, release];
             }
-            let _ : () = msg_send![self.objc, setGroupTouchBar: bar_id];
-            let ident: *mut Object = *self.bar_obj_map.get(&bar_id).unwrap() as *mut Object;
+            let _ : () = msg_send![self.objc, setGroupTouchBar: *bar_id];
+            let ident = self.find_bar_ident(bar_id).unwrap();
             let _ : () = msg_send![self.objc, setGroupIdent: ident];
             let _: () = msg_send![self.objc, applicationDidFinishLaunching: 0];
         }
@@ -236,36 +425,47 @@ impl TTouchbar for Touchbar {
             let _:() = msg_send![label, setEditable: NO];
             let text = NSString::alloc(nil).init_str(text);
             let _:() = msg_send![label, setStringValue: text];
+            let _ = msg_send![text, release];
 
             let ident = self.generate_ident();
-            let cls = Class::get("NSCustomTouchBarItem").unwrap();
+            let cls = RRCustomTouchBarItem::class();
             let item: *mut Object = msg_send![cls, alloc];
             let item: *mut Object = msg_send![item, initWithIdentifier: ident];
             msg_send![item, setView: label];
 
-            self.bar_obj_map.insert(item as u64, ident as u64);
-            self.control_obj_map.insert(label as u64, item as u64);
+            let internal = InternalItem {
+                _type: ItemType::Label,
+                view: item,
+                ident: ident,
+                control: Some(label),
+                scrubber: None,
+                button_cb: None,
+                slider_cb: None,
+                child_bar: None
+            };
+            self.item_map.insert(item as u64, internal);
             item as u64
         }
     }
-    fn update_label(&mut self, label_id: ItemId, text: &str) {
+    fn update_label(&mut self, label_id: &ItemId, text: &str) {
         unsafe {
-            let item: *mut Object = label_id as *mut Object;
+            let item: *mut Object = *label_id as *mut Object;
             let label: *mut Object = msg_send![item, view];
             let text = NSString::alloc(nil).init_str(text);
             let _:() = msg_send![label, setStringValue: text];
+            let _ = msg_send![text, release];
         }
     }
     fn create_text_scrubber(&mut self, data: Rc<TScrubberData>) -> ItemId {
         unsafe {
             let ident = self.generate_ident();
-            let cls = Class::get("NSCustomTouchBarItem").unwrap();
+            let cls = RRCustomTouchBarItem::class();
             let item: *mut Object = msg_send![cls, alloc];
             let item: *mut Object = msg_send![item, initWithIdentifier: ident];
 
             // note: frame is ignored, but must be provided.
             let frame = NSRect::new(NSPoint::new(0., 0.), NSSize::new(0., 30.));
-            let cls = Class::get("NSScrubber").unwrap();
+            let cls = RRScrubber::class();
             let scrubber: *mut Object = msg_send![cls, alloc];
             let scrubber: *mut Object = msg_send![scrubber, initWithFrame: frame];
 
@@ -278,31 +478,32 @@ impl TTouchbar for Touchbar {
             let _:() = msg_send![scrubber, setDataSource: self.objc.clone()];
             let _:() = msg_send![scrubber, setSelectionOverlayStyle: style];
             let _:() = msg_send![scrubber, setMode: 1]; // NSScrubberModeFree
-            //(*scrubber).set_ivar("selectedIndex", 3);
-            //let _:() = msg_send![scrubber, ];
             let _:() = msg_send![item, setView: scrubber];
 
-            self.bar_obj_map.insert(item as u64, ident as u64);
-            let scrub_struct = Scrubber {
-                data: data,
-                _ident: ident as u64,
-                _item: item as u64,
-                _scrubber: scrubber as u64,
+            let internal = InternalItem {
+                _type: ItemType::Scrubber,
+                view: item,
+                ident: ident,
+                control: Some(scrubber),
+                scrubber: Some(data),
+                button_cb: None,
+                slider_cb: None,
+                child_bar: None,
             };
-            self.scrubber_obj_map.insert(scrubber as u64, scrub_struct);
+            self.item_map.insert(item as u64, internal);
             item as u64
         }
     }
-    fn select_scrubber_item(&mut self, scrub_id: ItemId, index: u32) {
+    fn select_scrubber_item(&mut self, scrub_id: &ItemId, index: u32) {
         unsafe {
-            let item = scrub_id as *mut Object;
+            let item = *scrub_id as *mut Object;
             let scrubber: *mut Object = msg_send![item, view];
             let _:() = msg_send![scrubber, setSelectedIndex: index];
         }
     }
-    fn refresh_scrubber(&mut self, scrub_id: ItemId) {
+    fn refresh_scrubber(&mut self, scrub_id: &ItemId) {
         unsafe {
-            let item = scrub_id as *mut Object;
+            let item = *scrub_id as *mut Object;
             let scrubber: *mut Object = msg_send![item, view];
             let sel_idx: u32 = msg_send![scrubber, selectedIndex];
             let _:() = msg_send![scrubber, reloadData];
@@ -317,21 +518,29 @@ impl TTouchbar for Touchbar {
             let btn = self.alloc_button(image, text,
                                         target,
                                         sel!(button:));
-            let cls = Class::get("NSCustomTouchBarItem").unwrap();
+            let cls = RRCustomTouchBarItem::class();
             let item: *mut Object = msg_send![cls, alloc];
             let item: *mut Object = msg_send![item, initWithIdentifier: ident];
             msg_send![item, setView: btn];
 
-            self.bar_obj_map.insert(item as u64, ident as u64);
-            self.control_obj_map.insert(btn as u64, item as u64);
-            self.button_cb_map.insert(btn as u64, cb);
+            let internal = InternalItem {
+                _type: ItemType::Button,
+                view: item,
+                ident: ident,
+                control: Some(btn),
+                scrubber: None,
+                button_cb: Some(cb),
+                slider_cb: None,
+                child_bar: None,
+            };
+            self.item_map.insert(item as u64, internal);
             item as u64
         }
     }
     fn create_slider(&mut self, min: f64, max: f64, cb: SliderCb) -> ItemId {
         unsafe {
             let ident = self.generate_ident();
-            let cls = Class::get("NSSliderTouchBarItem").unwrap();
+            let cls = RRSliderTouchBarItem::class();
             let item: *mut Object = msg_send![cls, alloc];
             let item: *mut Object = msg_send![item, initWithIdentifier: ident];
             let slider: *mut Object = msg_send![item, slider];
@@ -340,15 +549,24 @@ impl TTouchbar for Touchbar {
             msg_send![slider, setContinuous: YES];
             msg_send![item, setTarget: self.objc.clone()];
             msg_send![item, setAction: sel!(slider:)];
-            self.bar_obj_map.insert(item as u64, ident as u64);
-            self.control_obj_map.insert(slider as u64, item as u64);
-            self.slider_cb_map.insert(slider as u64, cb);
+
+            let internal = InternalItem {
+                _type: ItemType::Slider,
+                view: item,
+                ident: ident,
+                control: Some(slider),
+                scrubber: None,
+                button_cb: None,
+                slider_cb: Some(cb),
+                child_bar: None,
+            };
+            self.item_map.insert(item as u64, internal);
             item as u64
         }
     }
-    fn update_slider(&mut self, id: ItemId, value: f64) {
+    fn update_slider(&mut self, id: &ItemId, value: f64) {
         unsafe {
-            let item = id as *mut Object;
+            let item = *id as *mut Object;
             let slider: *mut Object = msg_send![item, slider];
             let _:() = msg_send![slider, setDoubleValue: value];
         }
@@ -372,9 +590,9 @@ impl INSObject for ObjcAppDelegate {
             let superclass = NSObject::class();
             let mut decl = ClassDecl::new("ObjcAppDelegate", superclass).unwrap();
             decl.add_ivar::<u64>("_rust_wrapper");
-            decl.add_ivar::<u64>("_groupbar");
-            decl.add_ivar::<u64>("_groupId");
-            decl.add_ivar::<u64>("_trayItem");
+            decl.add_ivar::<u64>("_group_bar");
+            decl.add_ivar::<u64>("_group_id");
+            decl.add_ivar::<u64>("_tray_item");
             decl.add_ivar::<u64>("_title");
             decl.add_ivar::<u64>("_icon");
 
@@ -385,13 +603,15 @@ impl INSObject for ObjcAppDelegate {
                 unsafe {this.set_ivar("_rust_wrapper", ptr);}
             }
             extern fn objc_group_touch_bar(this: &mut Object, _cmd: Sel) -> u64 {
-                unsafe {*this.get_ivar("_groupbar")}
+                unsafe {*this.get_ivar("_group_bar")}
             }
             extern fn objc_set_group_touch_bar(this: &mut Object, _cmd: Sel, bar: u64) {
-                unsafe {this.set_ivar("_groupbar", bar);}
+                unsafe {
+                    this.set_ivar("_group_bar", bar);
+                }
             }
             extern fn objc_set_group_ident(this: &mut Object, _cmd: Sel, bar: u64) {
-                unsafe {this.set_ivar("_groupId", bar);}
+                unsafe {this.set_ivar("_group_id", bar);}
             }
             extern fn objc_set_icon(this: &mut Object, _cmd: Sel, icon: u64) {
                 unsafe {this.set_ivar("_icon", icon);}
@@ -401,9 +621,13 @@ impl INSObject for ObjcAppDelegate {
                 unsafe {
                     let ptr: u64 = *this.get_ivar("_rust_wrapper");
                     let wrapper = &mut *(ptr as *mut RustTouchbarDelegateWrapper);
-                    let scrub_struct = wrapper.scrubber_obj_map.get(&scrub).unwrap();
-                    let item = scrub_struct._item;
-                    scrub_struct.data.count(item)
+                    if let Some(ref scrubber) = wrapper.find_scrubber(scrub) {
+                        if let Some(ref cbs) = wrapper.find_scrubber_callbacks(scrub) {
+                            let count = cbs.count(*scrubber);
+                            return count;
+                        }
+                    }
+                    0
                 }
             }
             extern fn objc_scrubber_view_for_item_at_index(this: &mut Object, _cmd: Sel,
@@ -412,16 +636,22 @@ impl INSObject for ObjcAppDelegate {
                     let ptr: u64 = *this.get_ivar("_rust_wrapper");
                     let wrapper = &mut *(ptr as *mut RustTouchbarDelegateWrapper);
                     let scrubber = scrub as *mut Object;
-                    let scrub_struct = wrapper.scrubber_obj_map.get(&scrub).unwrap();
-                    let item = scrub_struct._item;
-                    let ident = scrub_struct._ident as *mut Object;
-                    let view: *mut Object = msg_send![scrubber,
-                                                      makeItemWithIdentifier:ident owner:nil];
-                    let text = scrub_struct.data.text(item, idx);
-                    let text_field: *mut Object = msg_send![view, textField];
-                    let objc_text: *mut Object = NSString::alloc(nil).init_str(&text);
-                    let _:() = msg_send![text_field, setStringValue: objc_text];
-                    view as u64
+                    if let Some(ref item) = wrapper.find_scrubber(scrub) {
+                        if let Some(ref cbs) = wrapper.find_scrubber_callbacks(scrub) {
+                            let ident = wrapper.find_ident_from_control(&scrub).unwrap() as
+                                *mut Object;
+                            let view: *mut Object = msg_send![scrubber,
+                                                              makeItemWithIdentifier:ident
+                                                              owner:nil];
+                            let text = cbs.text(*item, idx);
+                            let text_field: *mut Object = msg_send![view, textField];
+                            let objc_text: *mut Object = NSString::alloc(nil).init_str(&text);
+                            let _:() = msg_send![text_field, setStringValue: objc_text];
+                            let _ = msg_send![objc_text, release];
+                            return view as u64;
+                        }
+                    }
+                    0
                 }
             }
             extern fn objc_scrubber_layout_size_for_item_at_index(this: &mut Object, _cmd: Sel,
@@ -430,10 +660,13 @@ impl INSObject for ObjcAppDelegate {
                 unsafe {
                     let ptr: u64 = *this.get_ivar("_rust_wrapper");
                     let wrapper = &mut *(ptr as *mut RustTouchbarDelegateWrapper);
-                    let scrub_struct = wrapper.scrubber_obj_map.get(&scrub).unwrap();
-                    let item = scrub_struct._item;
-                    let width = scrub_struct.data.width(item, idx);
-                    NSSize::new(width as f64, 30.)
+                    if let Some(ref item) = wrapper.find_scrubber(scrub) {
+                        if let Some(ref cbs) = wrapper.find_scrubber_callbacks(scrub) {
+                            let width = cbs.width(*item, idx);
+                            return NSSize::new(width as f64, 30.);
+                        }
+                    }
+                    NSSize::new(0., 30.)
                 }
             }
             extern fn objc_scrubber_did_select_item_at_index(this: &mut Object, _cmd: Sel,
@@ -441,9 +674,11 @@ impl INSObject for ObjcAppDelegate {
                 unsafe {
                     let ptr: u64 = *this.get_ivar("_rust_wrapper");
                     let wrapper = &mut *(ptr as *mut RustTouchbarDelegateWrapper);
-                    let scrub_struct = wrapper.scrubber_obj_map.get(&scrub).unwrap();
-                    let item = scrub_struct._item;
-                    scrub_struct.data.touch(item, idx);
+                    if let Some(ref item) = wrapper.find_scrubber(scrub) {
+                        if let Some(ref cbs) = wrapper.find_scrubber_callbacks(scrub) {
+                            cbs.touch(*item, idx);
+                        }
+                    }
                 }
             }
             extern fn objc_popbar(this: &mut Object, _cmd: Sel, sender: u64) {
@@ -451,9 +686,12 @@ impl INSObject for ObjcAppDelegate {
                     let ptr: u64 = *this.get_ivar("_rust_wrapper");
                     let wrapper = &mut *(ptr as *mut RustTouchbarDelegateWrapper);
 
-                    let item = *wrapper.control_obj_map.get(&sender).unwrap() as *mut Object;
+                    let item = wrapper.find_popover(sender) .unwrap_or(0) as *mut Object;
+                    let ident = wrapper.find_ident_from_control(&sender) .unwrap_or(0) as *mut Object;
+                    if item == nil || ident == nil {
+                        return;
+                    }
                     let bar: *mut Object = msg_send![item, popoverTouchBar];
-                    let ident = *wrapper.bar_obj_map.get(&(bar as u64)).unwrap() as *mut Object;
 
                     // Present the request popover.  This must be done instead of
                     // using the popover's built-in showPopover because that pops
@@ -470,25 +708,27 @@ impl INSObject for ObjcAppDelegate {
                 unsafe {
                     let ptr: u64 = *this.get_ivar("_rust_wrapper");
                     let wrapper = &mut *(ptr as *mut RustTouchbarDelegateWrapper);
-                    let ref cb = *wrapper.button_cb_map.get(&sender).unwrap();
-                    cb(sender);
+                    if let Some(ref cb) = wrapper.find_button_cb(sender) {
+                        cb(sender);
+                    }
                 }
             }
             extern fn objc_slider(this: &mut Object, _cmd: Sel, sender: u64) {
                 unsafe {
                     let ptr: u64 = *this.get_ivar("_rust_wrapper");
                     let wrapper = &mut *(ptr as *mut RustTouchbarDelegateWrapper);
-                    let item = sender as *mut Object;
-                    let slider: *mut Object = msg_send![item, slider];
-                    let ref cb = *wrapper.slider_cb_map.get(&(slider as u64)).unwrap();
-                    let value: f64 = msg_send![slider, doubleValue];
-                    cb(sender, value);
+                    if let Some(ref cb) = wrapper.find_slider_cb(sender) {
+                        let item = sender as *mut Object;
+                        let slider: *mut Object = msg_send![item, slider];
+                        let value: f64 = msg_send![slider, doubleValue];
+                        cb(sender, value);
+                    }
                 }
             }
             extern fn objc_present(this: &mut Object, _cmd: Sel, _sender: u64) {
                 unsafe {
-                    let ident_int: u64 = *this.get_ivar("_groupId");
-                    let bar_int: u64 = *this.get_ivar("_groupbar");
+                    let ident_int: u64 = *this.get_ivar("_group_id");
+                    let bar_int: u64 = *this.get_ivar("_group_bar");
                     let ident = ident_int as *mut Object;
                     let bar = bar_int as *mut Object;
                     let cls = Class::get("NSTouchBar").unwrap();
@@ -503,15 +743,10 @@ impl INSObject for ObjcAppDelegate {
                     // Find the touchbar item matching this identifier in the
                     // Objective-C object map of the Rust wrapper class, and
                     // return it if found.
-                    let id = id_ptr as *mut Object;
                     let ptr: u64 = *this.get_ivar("_rust_wrapper");
                     let wrapper = &mut *(ptr as *mut RustTouchbarDelegateWrapper);
-                    for (obj_ref, ident_ref) in &wrapper.bar_obj_map {
-                        let ident = *ident_ref as *mut Object;
-                        let obj = *obj_ref as *mut Object;
-                        if msg_send![id, isEqualToString: ident] {
-                            return obj as u64;
-                        }
+                    if let Some(obj) = wrapper.find_view(id_ptr) {
+                        return obj as u64;
                     }
                 }
                 0
@@ -520,7 +755,7 @@ impl INSObject for ObjcAppDelegate {
                 unsafe {
                     DFRSystemModalShowsCloseBoxWhenFrontMost(YES);
 
-                    let old_item_ptr: u64 = *this.get_ivar("_trayItem");
+                    let old_item_ptr: u64 = *this.get_ivar("_tray_item");
                     let old_item = old_item_ptr as *mut Object;
                     if old_item != nil {
                         let cls = Class::get("NSTouchBarItem").unwrap();
@@ -528,12 +763,15 @@ impl INSObject for ObjcAppDelegate {
                         let _ = msg_send![old_item, release];
                     }
 
-                    let ident_int: u64 = *this.get_ivar("_groupId");
+                    let app = NSApp();
+                    let _:() = msg_send![app, setTouchBar: nil];
+
+                    let ident_int: u64 = *this.get_ivar("_group_id");
                     let ident = ident_int as *mut Object;
                     let cls = Class::get("NSCustomTouchBarItem").unwrap();
                     let item: *mut Object = msg_send![cls, alloc];
                     msg_send![item, initWithIdentifier:ident];
-                    this.set_ivar("_trayItem", item as u64);
+                    this.set_ivar("_tray_item", item as u64);
 
                     let cls = Class::get("NSButton").unwrap();
                     let icon_ptr: u64 = *this.get_ivar("_icon");

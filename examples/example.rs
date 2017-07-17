@@ -22,6 +22,9 @@ use rubrail::TTouchbar;
 use rubrail::TScrubberData;
 use rubrail::ItemId;
 
+#[macro_use]
+extern crate log;
+
 use std::rc::Rc;
 use std::cell::RefCell;
 
@@ -44,7 +47,7 @@ impl TScrubberData for TouchbarHandler {
         width
     }
     fn touch(&self, _item: ItemId, idx: u32) {
-        println!("scrub touch: {}", idx);
+        info!("scrub touch: {}", idx);
     }
 }
 
@@ -54,7 +57,7 @@ fn populate(bar_rc: Rc<RefCell<Touchbar>>, count: u32) {
     let mut tb = (bar_rc).borrow_mut();
 
     // Create the lowest level "root" touchbar
-    let barid = tb.create_bar();
+    let mut barid = tb.create_bar();
 
     // Create a quit button for root bar
     let quit_id = tb.create_button(None, Some("Quit"), Box::new(move |_| {rubrail::quit()}));
@@ -81,45 +84,48 @@ fn populate(bar_rc: Rc<RefCell<Touchbar>>, count: u32) {
 
     // Create a scrubber for the root bar
     let scrubber1_id = tb.create_text_scrubber(scrubber.clone());
-    tb.select_scrubber_item(scrubber1_id, 1);
+    tb.select_scrubber_item(&scrubber1_id, 1);
 
     // Create a 'popbar', a second level deep bar
-    let popbar1_id = tb.create_bar();
-    let popbutton1_id = tb.create_popover_item(None, Some("Popbar1"), popbar1_id);
+    let mut popbar1_id = tb.create_bar();
+    let popbutton1_id = tb.create_popover_item(None, Some("Popbar1"), &popbar1_id);
 
     // Create another scrubber with the same data, for the popbar.
     // Note that the data and callbacks are shared, but this is a different
     // instance and can store a different active selection.
     let scrubber2_id = tb.create_text_scrubber(scrubber.clone());
-    tb.select_scrubber_item(scrubber2_id, 3);
+    tb.select_scrubber_item(&scrubber2_id, 3);
 
     // Create a slider for the popbar.
-    let slider1_id = tb.create_slider(0.0, 50.0, Box::new(move |_s,v| {println!("Slid to: {}", v);}));
-    tb.update_slider(slider1_id, 15.0);
+    let slider1_id = tb.create_slider(0.0, 50.0, Box::new(move |_s,v| {info!("Slid to: {}", v);}));
+    tb.update_slider(&slider1_id, 15.0);
 
     // Create a another popbar.  This will make a 2-level deep UI.
-    let popbar2_id = tb.create_bar();
-    let popbutton2_id = tb.create_popover_item(None, Some("Popbar2"), popbar2_id);
+    let mut popbar2_id = tb.create_bar();
+    let popbutton2_id = tb.create_popover_item(None, Some("Popbar2"), &popbar2_id);
 
     // Create buttons to display on the popbars
     let popbar_button_id = tb.create_button(None, Some("1 level deep"), Box::new(move |_| {}));
     let deep_button_id = tb.create_button(None, Some("2 levels deep"), Box::new(move |_| {}));
 
     // Layout the deepest (2-level) popbar
-    tb.add_items_to_bar(popbar2_id, vec![deep_button_id]);
+    tb.add_items_to_bar(&mut popbar2_id, vec![deep_button_id]);
 
     // Layout the middle (1-level) popbar
-    tb.add_items_to_bar(popbar1_id, vec![popbar_button_id, popbutton2_id, slider1_id, scrubber2_id]);
+    tb.add_items_to_bar(&mut popbar1_id, vec![popbar_button_id, popbutton2_id, slider1_id, scrubber2_id]);
 
     // Layout the root bar
-    tb.add_items_to_bar(barid, vec![quit_id, button1_id, popbutton1_id, label1_id, scrubber1_id]);
+    tb.add_items_to_bar(&mut barid, vec![quit_id, button1_id, popbutton1_id, label1_id, scrubber1_id]);
 
     // Register the root bar and display it.
-    tb.set_bar_as_root(barid, true);
+    tb.set_bar_as_root(&barid);
     tb.enable();
 }
 
 fn main() {
+    // Write log to home directory
+    rubrail::create_logger(".rubrail.log");
+
     // Initialize OS X application.  A real app should probably not use this.
     rubrail::init_app();
 
