@@ -118,7 +118,7 @@ fn populate(bar_rc: Rc<RefCell<Touchbar>>, count: u32) {
     tb.add_items_to_bar(&mut barid, vec![quit_id, button1_id, popbutton1_id, label1_id, scrubber1_id]);
 
     // Register the root bar and display it.
-    tb.set_bar_as_root(&barid);
+    tb.set_bar_as_root(barid);
     tb.enable();
 }
 

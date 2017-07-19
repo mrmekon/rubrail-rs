@@ -400,7 +400,7 @@ impl TTouchbar for Touchbar {
             let _ = msg_send![idents, release];
         }
     }
-    fn set_bar_as_root(&mut self, bar_id: &BarId) {
+    fn set_bar_as_root(&mut self, bar_id: BarId) {
         unsafe {
             let old_bar: *mut Object = msg_send![self.objc, groupTouchBar];
             if old_bar != nil {
@@ -410,8 +410,8 @@ impl TTouchbar for Touchbar {
                 self.free_bar_allocations(old_bar);
                 msg_send![old_bar, release];
             }
-            let _ : () = msg_send![self.objc, setGroupTouchBar: *bar_id];
-            let ident = self.find_bar_ident(bar_id).unwrap();
+            let _ : () = msg_send![self.objc, setGroupTouchBar: bar_id];
+            let ident = self.find_bar_ident(&bar_id).unwrap();
             let _ : () = msg_send![self.objc, setGroupIdent: ident];
             let _: () = msg_send![self.objc, applicationDidFinishLaunching: 0];
         }
