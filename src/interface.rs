@@ -2,7 +2,6 @@ use std::rc::Rc;
 
 pub type BarId = u64;
 pub type ItemId = u64;
-pub type Ident = u64;
 pub type ButtonCb = Box<Fn(u64)>;
 pub type SliderCb = Box<Fn(u64, f64)>;
 
@@ -19,22 +18,22 @@ pub trait TTouchbar {
     fn set_icon(&self, image: &str) {}
     fn enable(&self) {}
 
-    fn create_bar(&mut self) -> BarId {0}
-    fn add_items_to_bar(&mut self, bar_id: BarId, items: Vec<ItemId>) {}
-    fn set_bar_as_root(&mut self, bar_id: BarId, close_existing: bool) {}
+    fn create_bar(&mut self) -> BarId { 0 }
+    fn add_items_to_bar(&mut self, bar_id: &BarId, items: Vec<ItemId>) {}
+    fn set_bar_as_root(&mut self, bar_id: BarId) {}
 
     fn create_popover_item(&mut self, image: Option<&str>,
-                           text: Option<&str>, bar_id: BarId) -> ItemId {0}
+                           text: Option<&str>, bar_id: &BarId) -> ItemId {0}
 
     fn create_label(&mut self, text: &str) -> ItemId {0}
-    fn update_label(&mut self, label_id: ItemId, text: &str) {}
+    fn update_label(&mut self, label_id: &ItemId, text: &str) {}
 
     fn create_text_scrubber(&mut self, data: Rc<TScrubberData>) -> ItemId {0}
-    fn select_scrubber_item(&mut self, scrub_id: ItemId, index: u32) {}
-    fn refresh_scrubber(&mut self, scrub_id: ItemId) {}
+    fn select_scrubber_item(&mut self, scrub_id: &ItemId, index: u32) {}
+    fn refresh_scrubber(&mut self, scrub_id: &ItemId) {}
 
     fn create_button(&mut self, image: Option<&str>, text: Option<&str>, cb: ButtonCb) -> ItemId {0}
 
     fn create_slider(&mut self, min: f64, max: f64, cb: SliderCb) -> ItemId {0}
-    fn update_slider(&mut self, id: ItemId, value: f64) {}
+    fn update_slider(&mut self, id: &ItemId, value: f64) {}
 }
