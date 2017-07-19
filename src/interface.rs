@@ -5,12 +5,6 @@ pub type ItemId = u64;
 pub type ButtonCb = Box<Fn(u64)>;
 pub type SliderCb = Box<Fn(u64, f64)>;
 
-pub trait TObjOwner {
-    type S: TObjOwner;
-    fn new(ptr: u64) -> Self::S;
-    fn add_obj(&mut self, obj: u64);
-}
-
 pub trait TScrubberData {
     fn count(&self, item: ItemId) -> u32;
     fn text(&self, item: ItemId, idx: u32) -> String;
