@@ -11,6 +11,12 @@
 //! "popbar" submenus, and uses callbacks to your own functions or closures to
 //! inform your app of touch interactions.
 //!
+//! # Getting Rubrail
+//!
+//! [Cargo Crate](https://crates.io/crates/rubrail)
+//!
+//! [GitHub Source](https://github.com/mrmekon/rubrail-rs)
+//!
 //! # Execution Environment
 //!
 //! Rubrail can only communicate with Apple's Touch Bar service when it is
