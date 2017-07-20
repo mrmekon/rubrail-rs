@@ -14,8 +14,48 @@ use objc::declare::ClassDecl;
 #[cfg(feature = "objc_wrapper")]
 use self::objc_foundation::INSObject;
 
+/// Wrap an Objective-C class in a subclass that tracks allocations
+///
+/// This creates an Objective-C wrapper class which can be used during
+/// development to print or set breakpoints on object retain, release,
+/// or dealloc of certain Obj-C objects.
+///
+/// Enable by compiling with the `objc_wrapper` feature.  By default
+/// it only adds printing when an object deallocation begins, and
+/// provides nice places to hook breakpoints with lldb.
+///
+/// # Arguments
+///
+/// * `$newclass` - Name of the new Obj-C class to create
+///
+/// * `$superclass` - Name of the existing Obj-C class to wrap
+///
+/// * `$unique_newclass` - Any unique variable name that is different from
+///   $newclass.  This is just used to manage one-time initialization,
+///   and is manual because `concat_idents!()` is unstable.
+///
+/// # Example
+///
+/// ```rust
+/// #[macro_use]
+/// extern crate rubrail;
+/// #[macro_use]
+/// extern crate objc;
+/// use objc::runtime::Class;
+/// use objc::runtime::Object;
+///
+/// fn main() {
+///   objc_subclass!(MyNSObject, NSObject, MYNSOBJECT_CLASS);
+///   let cls = MyNSObject::class();
+///   unsafe {
+///     let obj: *mut Object = msg_send![cls, alloc];
+///     let obj: *mut Object = msg_send![obj, init];
+///   }
+/// }
+/// ```
 #[cfg(not(feature = "objc_wrapper"))]
-macro_rules! subclass {
+#[macro_export]
+macro_rules! objc_subclass {
     ( $newclass:ident, $superclass:ident, $unique_newclass:ident ) => {
         pub struct $newclass {}
         impl $newclass {
@@ -27,7 +67,8 @@ macro_rules! subclass {
 }
 
 #[cfg(feature = "objc_wrapper")]
-macro_rules! subclass {
+#[macro_export]
+macro_rules! objc_subclass {
     ( $newclass:ident, $superclass:ident, $unique_newclass:ident ) => {
         pub enum $newclass {}
         impl $newclass {}
@@ -88,8 +129,8 @@ macro_rules! subclass {
     };
 }
 
-subclass!(RRScrubber, NSScrubber, RRSCRUBBER_CLASS);
-subclass!(RRTouchBar, NSTouchBar, RRTOUCHBAR_CLASS);
-subclass!(RRCustomTouchBarItem, NSCustomTouchBarItem, RRCUSTOMITEM_CLASS);
-subclass!(RRPopoverTouchBarItem, NSPopoverTouchBarItem, RRPOPOVERITEM_CLASS);
-subclass!(RRSliderTouchBarItem, NSSliderTouchBarItem, RRSLIDER_CLASS);
+objc_subclass!(RRScrubber, NSScrubber, RRSCRUBBER_CLASS);
+objc_subclass!(RRTouchBar, NSTouchBar, RRTOUCHBAR_CLASS);
+objc_subclass!(RRCustomTouchBarItem, NSCustomTouchBarItem, RRCUSTOMITEM_CLASS);
+objc_subclass!(RRPopoverTouchBarItem, NSPopoverTouchBarItem, RRPOPOVERITEM_CLASS);
+objc_subclass!(RRSliderTouchBarItem, NSSliderTouchBarItem, RRSLIDER_CLASS);

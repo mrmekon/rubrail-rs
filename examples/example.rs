@@ -60,7 +60,7 @@ fn populate(bar_rc: Rc<RefCell<Touchbar>>, count: u32) {
     let mut barid = tb.create_bar();
 
     // Create a quit button for root bar
-    let quit_id = tb.create_button(None, Some("Quit"), Box::new(move |_| {rubrail::quit()}));
+    let quit_id = tb.create_button(None, Some("Quit"), Box::new(move |_| {rubrail::app::quit()}));
 
     // Create an action button for the root bar.  When clicked, it will
     // close the bar and re-create itself.
@@ -119,15 +119,14 @@ fn populate(bar_rc: Rc<RefCell<Touchbar>>, count: u32) {
 
     // Register the root bar and display it.
     tb.set_bar_as_root(barid);
-    tb.enable();
 }
 
 fn main() {
     // Write log to home directory
-    rubrail::create_logger(".rubrail.log");
+    rubrail::app::create_logger(".rubrail.log");
 
     // Initialize OS X application.  A real app should probably not use this.
-    rubrail::init_app();
+    rubrail::app::init_app();
 
     // Initialize the touchbar
     let bar_rc = Rc::new(RefCell::new(Touchbar::alloc("bar")));
@@ -137,5 +136,5 @@ fn main() {
 
     // Enter OS X application loop.  A real application should probably implement
     // this itself.
-    rubrail::run_forever();
+    rubrail::app::run_forever();
 }
