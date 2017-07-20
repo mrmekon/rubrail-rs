@@ -7,6 +7,7 @@ keywords = ["macos", "touchbar", "osx", "mac"]
 categories = ["gui", "hardware-support"]
 homepage = "https://github.com/mrmekon/rubrail-rs"
 repository = "https://github.com/mrmekon/rubrail-rs"
+documentation = "https://mrmekon.github.io/rubrail-rs/"
 license = "Apache-2.0"
 build = "build.rs"
 
