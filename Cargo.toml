@@ -7,6 +7,7 @@ keywords = ["macos", "touchbar", "osx", "mac"]
 categories = ["gui", "hardware-support"]
 homepage = "https://github.com/mrmekon/rubrail-rs"
 repository = "https://github.com/mrmekon/rubrail-rs"
+documentation = "https://mrmekon.github.io/rubrail-rs/"
 license = "Apache-2.0"
 build = "build.rs"
 
@@ -33,3 +34,11 @@ objc_id = "0.1"
 [target."cfg(target_os = \"macos\")".dependencies.objc]
 version = "0.2.2"
 features = ["exception"]
+
+[package.metadata.release]
+sign-commit = false
+upload-doc = true
+pre-release-commit-message = "Release {{version}}"
+dev-version-ext = "rc"
+tag-message = "Release {{version}}"
+doc-commit-message = "Release {{version}}"

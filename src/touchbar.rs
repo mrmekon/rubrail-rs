@@ -30,6 +30,36 @@ use super::wrapper::RRSliderTouchBarItem;
 
 const IDENT_PREFIX: &'static str = "com.trevorbentley.";
 
+/// Controller for creating and using Touch Bar UIs
+///
+/// The `Touchbar` type provides the interface between Rust and the Apple Touch
+/// Bar system.  It handles communication with the Touch Bar service, delegation
+/// of UI and touch events, and memory management of Objective-C objects.  All
+/// creation and modification of Touch Bar UIs is done through it.
+///
+/// This implementation uses **private** Apple APIs to create an always-available
+/// menu to the Control Strip region, which can be accessed regardless of which
+/// application is in focus.  Apps using it are **not permitted in the App Store**.
+///
+/// There should typically be **one** `Touchbar` type alocated per application.
+/// Rubrail does not enforce the singleton pattern automatically, so it is up to
+/// the application to guarantee that there is only one.  Theoretically, one
+/// application _can_ have multiple disjoint entries in the Touch Bar by creating
+/// more than one `Touchbar`, and Rubrail allows this though it is not tested.
+///
+/// See the documentation of the [`TTouchbar`](trait.TTouchbar.html) trait for usage.
+///
+/// # Example
+///
+/// ```
+/// extern crate rubrail;
+/// use rubrail::TTouchbar;
+/// fn main() {
+///   let controller = rubrail::Touchbar::alloc("test");
+/// }
+/// ```
+pub type Touchbar = Box<RustTouchbarDelegateWrapper>;
+
 pub type Ident = u64;
 
 #[link(name = "DFRFoundation", kind = "framework")]
@@ -138,7 +168,6 @@ pub struct RustTouchbarDelegateWrapper {
     bar_map: BTreeMap<ItemId, InternalBar>,
     item_map: BTreeMap<ItemId, InternalItem>,
 }
-pub type Touchbar = Box<RustTouchbarDelegateWrapper>;
 
 impl RustTouchbarDelegateWrapper {
     fn generate_ident(&mut self) -> u64 {
@@ -323,12 +352,6 @@ impl TTouchbar for Touchbar {
             let _:() = msg_send![self.objc, setIcon: objc_image];
             let _ = msg_send![filename, release];
             let _ = msg_send![objc_image, release];
-        }
-    }
-    fn enable(&self) {
-        unsafe {
-            let app = NSApp();
-            let _: () = msg_send![app, setDelegate: self.objc.clone()];
         }
     }
 
