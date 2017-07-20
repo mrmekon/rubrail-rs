@@ -18,6 +18,10 @@ Source for following screencast in `examples/example.rs`
 
 [![Crates.io Version](https://img.shields.io/crates/v/rubrail.svg)](https://crates.io/crates/rubrail)
 
+## Documentation
+
+[Rubrail API documentation](https://mrmekon.github.io/rubrail-rs/rubrail/)
+
 ## Information
 
 ### Warning -- Private APIs
