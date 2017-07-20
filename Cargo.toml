@@ -33,3 +33,11 @@ objc_id = "0.1"
 [target."cfg(target_os = \"macos\")".dependencies.objc]
 version = "0.2.2"
 features = ["exception"]
+
+[package.metadata.release]
+sign-commit = false
+upload-doc = true
+pre-release-commit-message = "Release {{version}}"
+dev-version-ext = "rc"
+tag-message = "Release {{version}}"
+doc-commit-message = "Release {{version}}"
