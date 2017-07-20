@@ -1,0 +1,4 @@
+Release with cargo-release and custom prefix:
+
+$ cargo release --tag-prefix="rubrail-" --dry-run
+$ cargo release --tag-prefix="rubrail-"
