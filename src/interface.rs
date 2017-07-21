@@ -58,6 +58,33 @@ pub type ButtonCb = Box<Fn(ItemId)>;
 /// * second - Current value of the slider
 pub type SliderCb = Box<Fn(ItemId, f64)>;
 
+/// An allocated image that can be added to items
+///
+/// A `TouchbarImage` can be created from a path to a file or from a standard
+/// Apple template image, and then registered with Touch Bar items that support
+/// images, such as buttons and popovers.
+pub type TouchbarImage = u64;
+
+/// Identifiers for Apple's standard button image templates
+pub enum ImageTemplate {
+    AlarmTemplate,
+    RewindTemplate,
+    FastForwardTemplate,
+    PlayTemplate,
+    PauseTemplate,
+    PlayPauseTemplate,
+    ListViewTemplate,
+    AudioOutputVolumeMediumTemplate,
+    GoUpTemplate,
+}
+
+/// Identifiers for the type of spacing available between items
+pub enum SpacerType {
+    Small,
+    Large,
+    Flexible
+}
+
 /// The callback API for managing data in a Scrubber
 ///
 /// The Touch Bar supports a UI element called a 'scrubber', which is a
@@ -207,21 +234,18 @@ pub trait TTouchbar {
     /// can themselves contain more popover items.
     ///
     /// All buttons accept an image, text, or both.  If both are provided, they
-    /// will both be displayed at the same time.  When specifying an image,
-    /// follow Apple's guidelines for icons on Retina displays (40px x 40px @
-    /// 150dpi PNG recommended), and remember to handle paths into the app
-    /// bundle correctly.
+    /// will both be displayed at the same time.
     ///
     /// # Arguments
     ///
-    /// * `image` - Full path to an image to display on the button
+    /// * `image` - An image allocated with a `create_image_*` function
     /// * `text` - Text to display on the button
     /// * `bar_id` - Bar to present when this button is pressed
     ///
     /// # Returns
     ///
     /// A newly allocated item which can be added to a bar.
-    fn create_popover_item(&mut self, image: Option<&str>,
+    fn create_popover_item(&mut self, image: Option<&TouchbarImage>,
                            text: Option<&str>, bar_id: &BarId) -> ItemId {0}
 
     /// Create a new label
@@ -298,24 +322,80 @@ pub trait TTouchbar {
     ///
     fn refresh_scrubber(&mut self, scrub_id: &ItemId) {}
 
-    /// Create a button that triggers a callback when pressed
-    ///
-    /// All buttons accept an image, text, or both.  If both are provided, they
-    /// will both be displayed at the same time.  When specifying an image,
-    /// follow Apple's guidelines for icons on Retina displays (40px x 40px @
-    /// 150dpi PNG recommended), and remember to handle paths into the app
-    /// bundle correctly.
+    /// Create space between items in a bar
     ///
     /// # Arguments
     ///
-    /// * `image` - Full path to an image to display on the button
+    /// * `space` - The type of spacer to create
+    ///
+    /// # Returns
+    ///
+    /// A newly allocated spacer item that can be added to a bar
+    ///
+    fn create_spacer(&mut self, space: SpacerType) -> ItemId {0}
+
+    /// Create an image from a file path
+    ///
+    /// Creates an image that can be assigned to UI items that display them,
+    /// like buttons and popovers.
+    ///
+    /// Specify a relative or absolute path to the image.
+    ///
+    /// When specifying an image, follow Apple's guidelines for icons on Retina
+    /// displays (40px x 40px @ 150dpi PNG recommended), and remember to handle
+    /// paths into the app bundle correctly.
+    ///
+    /// **WARNING** image memory is _deallocated_ after it is assigned to an
+    /// item.  Do **not** use the same image twice.  If two buttons will have
+    /// the same image, you must allocate the image twice.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path to an image file
+    ///
+    /// # Returns
+    ///
+    /// A newly allocated image that can be added to an item
+    ///
+    fn create_image_from_path(&mut self, path: &str) -> TouchbarImage {0}
+
+    /// Create an image from a template
+    ///
+    /// Creates an image that can be assigned to UI items that display them,
+    /// like buttons and popovers.
+    ///
+    /// See `ImageTemplate` for the supported options.  These templates are
+    /// provided by Apple.
+    ///
+    /// **WARNING** image memory is _deallocated_ after it is assigned to an
+    /// item.  Do **not** use the same image twice.  If two buttons will have
+    /// the same image, you must allocate the image twice.
+    ///
+    /// # Arguments
+    ///
+    /// * `template` - Identifier of the image template to use
+    ///
+    /// # Returns
+    ///
+    /// A newly allocated image that can be added to an item
+    ///
+    fn create_image_from_template(&mut self, template: ImageTemplate) -> TouchbarImage {0}
+
+    /// Create a button that triggers a callback when pressed
+    ///
+    /// All buttons accept an image, text, or both.  If both are provided, they
+    /// will both be displayed at the same time.
+    ///
+    /// # Arguments
+    ///
+    /// * `image` - An image allocated with a `create_image_*` function
     /// * `text` - Text to display on the button
     /// * `cb` - Callback to call when the button is pressed
     ///
     /// # Returns
     ///
     /// A newly allocated item which can be added to a bar.
-    fn create_button(&mut self, image: Option<&str>, text: Option<&str>, cb: ButtonCb) -> ItemId {0}
+    fn create_button(&mut self, image: Option<&TouchbarImage>, text: Option<&str>, cb: ButtonCb) -> ItemId {0}
 
     /// Create a slider item
     ///

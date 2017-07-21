@@ -92,6 +92,17 @@ mod dummy;
 #[cfg(not(feature = "private_api"))]
 pub use dummy::DummyTouchbar as Touchbar;
 
+#[cfg(target_os = "macos")]
+#[cfg(feature = "private_api")]
+pub use touchbar::util;
+
+#[cfg(not(feature = "private_api"))]
+pub mod util {
+    pub fn print_nsstring(_str: *mut u64) {}
+    pub fn nsstring_decode(_str: *mut u64) -> String { String::new() }
+    pub fn bundled_resource_path(_name: &str, _extension: &str) -> Option<String> { None }
+}
+
 /// Module for creating and running a simple Mac application
 ///
 /// The `app` module contains helper functions for creating and running a very
@@ -105,6 +116,7 @@ pub mod app {
     extern crate objc;
     extern crate log4rs;
     use std::env;
+    use std::process;
 
     #[cfg(target_os = "macos")]
     #[cfg(feature = "private_api")]
@@ -163,7 +175,7 @@ pub mod app {
     }
     #[cfg(not(feature = "private_api"))]
     pub fn quit() {
-        std::process::exit(0);
+        process::exit(0);
     }
 
     /// Enable logging to a file in the user's home directory

@@ -68,12 +68,22 @@ extern {
     pub fn DFRElementSetControlStripPresenceForIdentifier(n: *mut Object, x: i8);
 }
 
-#[cfg(feature = "libc")]
 pub mod util {
+    //! Utility functions for working with the Apple/TouchBar environment
+    //!
+    //! Contains convenience functions that help with some common actions in
+    //! Mac environments.
+
     extern crate libc;
-    use objc::runtime::Object;
+    extern crate cocoa;
+    use std::ptr;
     use std::ffi::CStr;
+    use objc::runtime::Object;
+    use objc::runtime::Class;
+    use self::cocoa::foundation::NSString;
+    use self::cocoa::base::nil;
     #[allow(dead_code)]
+    /// Print an NSString object to the global logger
     pub fn print_nsstring(str: *mut Object) {
         unsafe {
             let cstr: *const libc::c_char = msg_send![str, UTF8String];
@@ -81,6 +91,8 @@ pub mod util {
             info!("{}", rstr);
         }
     }
+
+    /// Convert an NSString object into a Rust String
     pub fn nsstring_decode(str: *mut Object) -> String {
         unsafe {
             let cstr: *const libc::c_char = msg_send![str, UTF8String];
@@ -88,13 +100,60 @@ pub mod util {
             rstr
         }
     }
+
+    /// Locate a resource in the executing Mac App bundle
+    ///
+    /// If the program is executing from an App bundle (.app), which it must be
+    /// to use Rubrail correctly, this looks for a resource by name and
+    /// extension in the bundled Resources directory.
+    pub fn bundled_resource_path(name: &str, extension: &str) -> Option<String> {
+        unsafe {
+            let cls = Class::get("NSBundle").unwrap();
+            let bundle: *mut Object = msg_send![cls, mainBundle];
+            let res = NSString::alloc(nil).init_str(name);
+            let ext = NSString::alloc(nil).init_str(extension);
+            let ini: *mut Object = msg_send![bundle, pathForResource:res ofType:ext];
+            let _ = msg_send![res, release];
+            let _ = msg_send![ext, release];
+            let cstr: *const libc::c_char = msg_send![ini, UTF8String];
+            if cstr != ptr::null() {
+                let rstr = CStr::from_ptr(cstr).to_string_lossy().into_owned();
+                return Some(rstr);
+            }
+            None
+        }
+    }
 }
-#[cfg(not(feature = "libc"))]
-pub mod util {
-    use objc::runtime::Object;
-    #[allow(dead_code)]
-    pub fn print_nsstring(_str: *mut Object) {}
-    pub fn nsstring_decode(_str: *mut Object) -> String { String::new() }
+
+macro_rules! image_template {
+    ( $var:ident, $($template:ident),* ) => {
+        match $var {
+            $(
+                ImageTemplate::$template => format!("NSTouchBar{}", stringify!($template)),
+            )*
+        }
+    }
+}
+
+impl ImageTemplate {
+    fn objc(template: ImageTemplate) -> *mut Object {
+        unsafe {
+            let s = image_template!(template,
+                                    AlarmTemplate,
+                                    RewindTemplate,
+                                    FastForwardTemplate,
+                                    PlayTemplate,
+                                    PauseTemplate,
+                                    PlayPauseTemplate,
+                                    ListViewTemplate,
+                                    AudioOutputVolumeMediumTemplate,
+                                    GoUpTemplate
+            );
+            let name = NSString::alloc(nil).init_str(&s);
+            let _ = msg_send![name, autorelease];
+            name
+        }
+    }
 }
 
 #[derive(PartialEq, Debug)]
@@ -104,6 +163,7 @@ enum ItemType {
     Slider,
     Scrubber,
     Popover,
+    Spacer,
 }
 
 struct InternalBar {
@@ -180,7 +240,7 @@ impl RustTouchbarDelegateWrapper {
             objc_ident as u64
         }
     }
-    fn alloc_button(&mut self, image: Option<&str>, text: Option<&str>,
+    fn alloc_button(&mut self, image: Option<&TouchbarImage>, text: Option<&str>,
                     target: *mut Object, sel: SEL) -> *mut Object {
         unsafe {
             let text = match text {
@@ -188,12 +248,7 @@ impl RustTouchbarDelegateWrapper {
                 None => nil,
             };
             let image = match image {
-                Some(i) => {
-                    let filename = NSString::alloc(nil).init_str(i);
-                    let objc_image = NSImage::alloc(nil).initWithContentsOfFile_(filename);
-                    let _ = msg_send![filename, release];
-                    objc_image
-                },
+                Some(i) => *i as *mut Object,
                 None => nil,
             };
             let cls = Class::get("NSButton").unwrap();
@@ -351,7 +406,6 @@ impl TTouchbar for Touchbar {
             let objc_image = NSImage::alloc(nil).initWithContentsOfFile_(filename);
             let _:() = msg_send![self.objc, setIcon: objc_image];
             let _ = msg_send![filename, release];
-            let _ = msg_send![objc_image, release];
         }
     }
 
@@ -372,7 +426,7 @@ impl TTouchbar for Touchbar {
             bar as u64
         }
     }
-    fn create_popover_item(&mut self, image: Option<&str>,
+    fn create_popover_item(&mut self, image: Option<&TouchbarImage>,
                            text: Option<&str>, bar_id: &BarId) -> ItemId {
         unsafe {
             let bar = *bar_id as *mut Object;
@@ -528,13 +582,66 @@ impl TTouchbar for Touchbar {
         unsafe {
             let item = *scrub_id as *mut Object;
             let scrubber: *mut Object = msg_send![item, view];
-            let sel_idx: u32 = msg_send![scrubber, selectedIndex];
+            let sel_idx: i32 = msg_send![scrubber, selectedIndex];
             let _:() = msg_send![scrubber, reloadData];
             // reload clears the selected item.  re-select it.
-            let _:() = msg_send![scrubber, setSelectedIndex: sel_idx];
+            if sel_idx >= 0 {
+                let _:() = msg_send![scrubber, setSelectedIndex: sel_idx];
+            }
         }
     }
-    fn create_button(&mut self, image: Option<&str>, text: Option<&str>, cb: ButtonCb) -> ItemId {
+
+    fn create_spacer(&mut self, space: SpacerType) -> ItemId {
+        unsafe {
+            let s = match space {
+                SpacerType::Small =>
+                    NSString::alloc(nil).init_str("NSTouchBarItemIdentifierFixedSpaceSmall"),
+                SpacerType::Large =>
+                    NSString::alloc(nil).init_str("NSTouchBarItemIdentifierFixedSpaceLarge"),
+                SpacerType::Flexible =>
+                    NSString::alloc(nil).init_str("NSTouchBarItemIdentifierFlexibleSpace"),
+            };
+            // This is really stupid, since it's just a string, but to fit into the
+            // rest of the system we go ahead and allocate a whole internal item for it.
+
+            // And since it doesn't have an ident, just use it as its own ident.  Both
+            // the view and ident will be sent a release at shutdown, so retain it an
+            // extra time here to keep the references balanced.
+            let _ = msg_send![s, retain];
+
+            let internal = InternalItem {
+                _type: ItemType::Spacer,
+                view: s,
+                ident: s as u64,
+                control: None,
+                scrubber: None,
+                button_cb: None,
+                slider_cb: None,
+                child_bar: None,
+            };
+            self.item_map.insert(s as u64, internal);
+            s as ItemId
+        }
+    }
+
+    fn create_image_from_path(&mut self, path: &str) -> TouchbarImage {
+        unsafe {
+            let filename = NSString::alloc(nil).init_str(path);
+            let objc_image = NSImage::alloc(nil).initWithContentsOfFile_(filename);
+            let _ = msg_send![filename, release];
+            objc_image as TouchbarImage
+        }
+    }
+
+    fn create_image_from_template(&mut self, template: ImageTemplate) -> TouchbarImage {
+        unsafe {
+            let cls = Class::get("NSImage").unwrap();
+            let image: *mut Object = msg_send![cls, imageNamed: ImageTemplate::objc(template)];
+            image as TouchbarImage
+        }
+    }
+
+    fn create_button(&mut self, image: Option<&TouchbarImage>, text: Option<&str>, cb: ButtonCb) -> ItemId {
         unsafe {
             let ident = self.generate_ident();
             let target = (&*self.objc.clone()) as *const ObjcAppDelegate as *mut Object;
