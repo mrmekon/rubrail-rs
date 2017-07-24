@@ -715,6 +715,7 @@ impl TTouchbar for Touchbar {
     }
 
     fn create_slider(&mut self, min: f64, max: f64,
+                     label: Option<&str>,
                      continuous: bool, cb: SliderCb) -> ItemId {
         unsafe {
             let ident = self.generate_ident();
@@ -722,6 +723,11 @@ impl TTouchbar for Touchbar {
             let item: *mut Object = msg_send![cls, alloc];
             let item: *mut Object = msg_send![item, initWithIdentifier: ident];
             let slider: *mut Object = msg_send![item, slider];
+            if let Some(label) = label {
+                let objc_text: *mut Object = NSString::alloc(nil).init_str(label);
+                msg_send![item, setLabel: objc_text];
+                msg_send![objc_text, release];
+            }
             msg_send![slider, setMinValue: min];
             msg_send![slider, setMaxValue: max];
             msg_send![slider, setContinuous: continuous];

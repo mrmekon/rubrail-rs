@@ -98,7 +98,7 @@ fn populate(bar_rc: Rc<RefCell<Touchbar>>, count: u32) {
     tb.select_scrubber_item(&scrubber2_id, 3);
 
     // Create a slider for the popbar.
-    let slider1_id = tb.create_slider(0.0, 50.0, true,
+    let slider1_id = tb.create_slider(0.0, 50.0, true, "Slide",
                                       Box::new(move |_s,v| {info!("Slid to: {}", v);}));
     tb.update_slider(&slider1_id, 15.0);
 

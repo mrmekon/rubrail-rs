@@ -451,6 +451,7 @@ pub trait TTouchbar {
     ///
     /// * `min` - Minimum value (slider all the way left)
     /// * `max` - Maximum value (slider all the way right)
+    /// * `label` - Text label displayed on left of slider (optional)
     /// * `continuous` - Whether callback is called while sliding, or only
     /// * `cb` - Callback called when the slider value is changed
     ///   after it is released.
@@ -459,6 +460,7 @@ pub trait TTouchbar {
     ///
     /// A newly allocated slider item
     fn create_slider(&mut self, min: f64, max: f64,
+                     label: Option<&str>,
                      continuous: bool, cb: SliderCb) -> ItemId {0}
 
     /// Update the current position of a slider
