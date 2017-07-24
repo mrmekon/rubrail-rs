@@ -566,6 +566,8 @@ impl TTouchbar for Touchbar {
             let label: *mut Object = msg_send![cls, alloc];
             let label: *mut Object = msg_send![label, initWithFrame: frame];
             let _:() = msg_send![label, setEditable: NO];
+            let cell: *mut Object = msg_send![label, cell];
+            let _:() = msg_send![cell, setWraps: NO];
             let text = NSString::alloc(nil).init_str(text);
             let _:() = msg_send![label, setStringValue: text];
             let _ = msg_send![text, release];
