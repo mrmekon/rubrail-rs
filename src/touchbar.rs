@@ -495,7 +495,7 @@ impl TTouchbar for Touchbar {
     }
     fn create_label(&mut self, text: &str) -> ItemId {
         unsafe {
-            let frame = NSRect::new(NSPoint::new(0., 0.), NSSize::new(300., 44.));
+            let frame = NSRect::new(NSPoint::new(0., 0.), NSSize::new(0., 40.));
             let cls = Class::get("NSTextField").unwrap();
             let label: *mut Object = msg_send![cls, alloc];
             let label: *mut Object = msg_send![label, initWithFrame: frame];
@@ -533,6 +533,24 @@ impl TTouchbar for Touchbar {
             let _ = msg_send![text, release];
         }
     }
+    fn update_label_width(&mut self, label_id: &ItemId, width: u32) {
+        unsafe {
+            //let _ = msg_send![label, setAutoresizingMask: 0];
+            //let _ = msg_send![label, setFrameSize: NSSize::new(600., 10.)];
+            //let _ = msg_send![label, setBoundsSize: NSSize::new(600., 10.)];
+            //let _ = msg_send![item, setFrameSize: NSSize::new(600., 30.)];
+            //let _ = msg_send![label, setPreferredMaxLayoutWidth: 500.];
+            //let constraints: *mut Object = msg_send![label, constraints];
+            //let count: u32 = msg_send![constraints, count];
+            //info!("CONSTRAINTS: {}", count);
+            let item: *mut Object = *label_id as *mut Object;
+            let label: *mut Object = msg_send![item, view];
+            let anchor: *mut Object = msg_send![label, widthAnchor];
+            let constraint: *mut Object = msg_send![anchor, constraintEqualToConstant: width as f64];
+            let _ = msg_send![constraint, setActive: YES];
+        }
+    }
+
     fn create_text_scrubber(&mut self, data: Rc<TScrubberData>) -> ItemId {
         unsafe {
             let ident = self.generate_ident();
@@ -667,7 +685,19 @@ impl TTouchbar for Touchbar {
             item as u64
         }
     }
-    fn create_slider(&mut self, min: f64, max: f64, cb: SliderCb) -> ItemId {
+
+    fn update_button_width(&mut self, button_id: &ItemId, width: u32) {
+        unsafe {
+            let item: *mut Object = *button_id as *mut Object;
+            let control: *mut Object = msg_send![item, view];
+            let anchor: *mut Object = msg_send![control, widthAnchor];
+            let constraint: *mut Object = msg_send![anchor, constraintEqualToConstant: width as f64];
+            let _ = msg_send![constraint, setActive: YES];
+        }
+    }
+
+    fn create_slider(&mut self, min: f64, max: f64,
+                     continuous: bool, cb: SliderCb) -> ItemId {
         unsafe {
             let ident = self.generate_ident();
             let cls = RRSliderTouchBarItem::class();
@@ -676,7 +706,7 @@ impl TTouchbar for Touchbar {
             let slider: *mut Object = msg_send![item, slider];
             msg_send![slider, setMinValue: min];
             msg_send![slider, setMaxValue: max];
-            msg_send![slider, setContinuous: YES];
+            msg_send![slider, setContinuous: continuous];
             msg_send![item, setTarget: self.objc.clone()];
             msg_send![item, setAction: sel!(slider:)];
 

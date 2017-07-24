@@ -66,6 +66,7 @@ pub type SliderCb = Box<Fn(ItemId, f64)>;
 pub type TouchbarImage = u64;
 
 /// Identifiers for Apple's standard button image templates
+#[allow(missing_docs)]
 pub enum ImageTemplate {
     AlarmTemplate,
     RewindTemplate,
@@ -80,8 +81,11 @@ pub enum ImageTemplate {
 
 /// Identifiers for the type of spacing available between items
 pub enum SpacerType {
+    /// "Small" space, defined by Apple
     Small,
+    /// "Large" space, defined by Apple
     Large,
+    /// Flexible space, grows and shrinks as it can/needs
     Flexible
 }
 
@@ -146,6 +150,7 @@ pub trait TScrubberData {
 /// Apple channels which don't permit private API usage.
 ///
 pub trait TTouchbar {
+    /// A concrete implementation of TTouchbar
     type T: TTouchbar;
 
     /// Allocate a new Touch Bar interface
@@ -275,6 +280,17 @@ pub trait TTouchbar {
     ///
     fn update_label(&mut self, label_id: &ItemId, text: &str) {}
 
+    /// Changes the width of an existing label
+    ///
+    /// Set a fixed width for a label, in pixels.
+    ///
+    /// # Arguments
+    ///
+    /// * `label_id` - Label item to change
+    /// * `width` - New width of label, in pixels
+    ///
+    fn update_label_width(&mut self, label_id: &ItemId, width: u32) {}
+
     /// Create a horizontally scrolling 'scrubber' of text
     ///
     /// Creates a Scrubber, which is a  horizontally scrolling widget filled
@@ -397,6 +413,17 @@ pub trait TTouchbar {
     /// A newly allocated item which can be added to a bar.
     fn create_button(&mut self, image: Option<&TouchbarImage>, text: Option<&str>, cb: ButtonCb) -> ItemId {0}
 
+    /// Changes the width of an existing button
+    ///
+    /// Set a fixed width for a button, in pixels.
+    ///
+    /// # Arguments
+    ///
+    /// * `button_id` - Button item to change
+    /// * `width` - New width of button, in pixels
+    ///
+    fn update_button_width(&mut self, button_id: &ItemId, width: u32) {}
+
     /// Create a slider item
     ///
     /// Creates an item that displays as a continuously variable horizontal
@@ -414,12 +441,15 @@ pub trait TTouchbar {
     ///
     /// * `min` - Minimum value (slider all the way left)
     /// * `max` - Maximum value (slider all the way right)
+    /// * `continuous` - Whether callback is called while sliding, or only
     /// * `cb` - Callback called when the slider value is changed
+    ///   after it is released.
     ///
     /// # Returns
     ///
     /// A newly allocated slider item
-    fn create_slider(&mut self, min: f64, max: f64, cb: SliderCb) -> ItemId {0}
+    fn create_slider(&mut self, min: f64, max: f64,
+                     continuous: bool, cb: SliderCb) -> ItemId {0}
 
     /// Update the current position of a slider
     ///

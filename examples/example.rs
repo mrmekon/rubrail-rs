@@ -72,6 +72,7 @@ fn populate(bar_rc: Rc<RefCell<Touchbar>>, count: u32) {
 
     // Create a text label for the root bar
     let label1_id = tb.create_label("This is a label\nWith two rows");
+    tb.update_label_width(&label1_id, 100);
 
     // Create a data backend for scrolling text "scrubbers"
     let scrubber = Rc::new(TouchbarHandler {
@@ -97,7 +98,8 @@ fn populate(bar_rc: Rc<RefCell<Touchbar>>, count: u32) {
     tb.select_scrubber_item(&scrubber2_id, 3);
 
     // Create a slider for the popbar.
-    let slider1_id = tb.create_slider(0.0, 50.0, Box::new(move |_s,v| {info!("Slid to: {}", v);}));
+    let slider1_id = tb.create_slider(0.0, 50.0, true,
+                                      Box::new(move |_s,v| {info!("Slid to: {}", v);}));
     tb.update_slider(&slider1_id, 15.0);
 
     // Create a another popbar.  This will make a 2-level deep UI.

@@ -51,6 +51,7 @@
 //! Any objects created with a _create*()_ function that are never added to a
 //! bar that is set as the system bar will be leaked.
 //!
+#![deny(missing_docs)]
 
 #[allow(dead_code)]
 #[allow(unused_variables)]
@@ -116,6 +117,7 @@ pub mod app {
     extern crate objc;
     extern crate log4rs;
     use std::env;
+    #[cfg(not(feature = "private_api"))]
     use std::process;
 
     #[cfg(target_os = "macos")]
