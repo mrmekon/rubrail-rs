@@ -413,6 +413,16 @@ pub trait TTouchbar {
     /// A newly allocated item which can be added to a bar.
     fn create_button(&mut self, image: Option<&TouchbarImage>, text: Option<&str>, cb: ButtonCb) -> ItemId {0}
 
+    /// Changes the image and/or text of a button
+    ///
+    /// # Arguments
+    ///
+    /// * `item` - Button item to change
+    /// * `image` - New image to draw on button (optional)
+    /// * `text` - New text to draw on button (optional)
+    ///
+    fn update_button(&mut self, item: &ItemId, image: Option<&TouchbarImage>, text: Option<&str>) {}
+
     /// Changes the width of an existing button
     ///
     /// Set a fixed width for a button, in pixels.

@@ -655,6 +655,7 @@ impl TTouchbar for Touchbar {
         unsafe {
             let cls = Class::get("NSImage").unwrap();
             let image: *mut Object = msg_send![cls, imageNamed: ImageTemplate::objc(template)];
+            let _ = msg_send![image, retain];
             image as TouchbarImage
         }
     }
@@ -683,6 +684,23 @@ impl TTouchbar for Touchbar {
             };
             self.item_map.insert(item as u64, internal);
             item as u64
+        }
+    }
+
+    fn update_button(&mut self, item: &ItemId, image: Option<&TouchbarImage>, text: Option<&str>) {
+        unsafe {
+            let item = *item as *mut Object;
+            let btn: *mut Object = msg_send![item, view];
+            if let Some(image) = image {
+                let image = *image as *mut Object;
+                let _ = msg_send![btn, setImage: image];
+                let _ = msg_send![image, release];
+            }
+            if let Some(text) = text {
+                let objc_text = NSString::alloc(nil).init_str(text);
+                let _ = msg_send![btn, setTitle: objc_text];
+                let _ = msg_send![objc_text, release];
+            }
         }
     }
 
