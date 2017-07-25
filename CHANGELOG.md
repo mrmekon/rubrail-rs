@@ -10,6 +10,9 @@
  * Support non-continous sliders
  * Support changing button contents
  * Support label for sliders
+ * Support adding swipe gestures to touch bar items
+ * Fix font in multi-line labels.
+ * Fix invalid items sent to button callbacks.
 
 0.3.0
 -----

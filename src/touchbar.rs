@@ -76,6 +76,7 @@ pub mod util {
 
     extern crate libc;
     extern crate cocoa;
+    use super::ItemId;
     use std::ptr;
     use std::ffi::CStr;
     use objc::runtime::Object;
@@ -122,6 +123,55 @@ pub mod util {
             }
             None
         }
+    }
+
+    /// Sets the backgroundColor attribute on an item's view.
+    ///
+    /// This is an **unsafe** helper function to set the backgroundColor
+    /// attribute on the view of an item.  It does *not* verify that the item
+    /// actually has a view, nor that the view supports backgroundColor, hence
+    /// **unsafe**.
+    ///
+    /// Known compatible items: labels
+    ///
+    /// # Arguments
+    ///
+    /// * `item` - The `ItemId` to color
+    /// * `r` - Red value (0.0 - 1.0)
+    /// * `g` - Green value (0.0 - 1.0)
+    /// * `b` - Blue value (0.0 - 1.0)
+    /// * `alpha` - Alpha value (0.0 - 1.0)
+    pub unsafe fn set_bg_color(item: &ItemId, r: f64, g: f64, b: f64, alpha: f64) {
+        let item = *item as *mut Object;
+        let view: *mut Object = msg_send![item, view];
+        let cls = Class::get("NSColor").unwrap();
+        let color: *mut Object = msg_send![
+            cls, colorWithRed: r green: g blue: b alpha: alpha];
+        msg_send![view, setBackgroundColor: color];
+    }
+
+    /// Sets the textColor attribute on an item's view.
+    ///
+    /// This is an **unsafe** helper function to set the textColor attribute on
+    /// the view of an item.  It does *not* verify that the item actually has a
+    /// view, nor that the view supports textColor, hence **unsafe**.
+    ///
+    /// Known compatible items: labels
+    ///
+    /// # Arguments
+    ///
+    /// * `item` - The `ItemId` to color
+    /// * `r` - Red value (0.0 - 1.0)
+    /// * `g` - Green value (0.0 - 1.0)
+    /// * `b` - Blue value (0.0 - 1.0)
+    /// * `alpha` - Alpha value (0.0 - 1.0)
+    pub unsafe fn set_text_color(item: &ItemId, r: f64, g: f64, b: f64, alpha: f64) {
+        let item = *item as *mut Object;
+        let view: *mut Object = msg_send![item, view];
+        let cls = Class::get("NSColor").unwrap();
+        let color: *mut Object = msg_send![
+            cls, colorWithRed: r green: g blue: b alpha: alpha];
+        msg_send![view, setTextColor: color];
     }
 }
 
@@ -255,6 +305,7 @@ struct InternalItem {
     scrubber: Option<Rc<TScrubberData>>,
     button_cb: Option<ButtonCb>,
     slider_cb: Option<SliderCb>,
+    swipe_cb: Option<SwipeCb>,
     child_bar: Option<ItemId>,
 }
 
@@ -283,6 +334,7 @@ impl InternalItem {
             self.control = None;
             self.scrubber = None;
             self.button_cb = None;
+            self.swipe_cb = None;
             self.slider_cb = None;
         }
     }
@@ -365,6 +417,14 @@ impl RustTouchbarDelegateWrapper {
             None => None,
         }
     }
+    fn find_view_from_control(&self, item: &ItemId) -> Option<*mut Object> {
+        match self.item_map.values().into_iter().filter(|x| {
+            x.control.is_some() && x.control.unwrap() as ItemId == *item
+        }).next() {
+            Some(item) => Some(item.view),
+            None => None,
+        }
+    }
     fn find_bar_ident(&self, bar: &ItemId) -> Option<Ident> {
         match self.bar_map.values().into_iter().filter(|x| {
             x.view as ItemId == *bar
@@ -394,6 +454,14 @@ impl RustTouchbarDelegateWrapper {
             x._type == ItemType::Button && x.control.unwrap() as u64 == btn
         }).next() {
             Some(item) => item.button_cb.as_ref(),
+            None => None,
+        }
+    }
+    fn find_swipe_cb(&self, item: u64) -> Option<&SwipeCb> {
+        match self.item_map.values().into_iter().filter(|x| {
+            x.control.is_some() && x.control.unwrap() as u64 == item
+        }).next() {
+            Some(item) => item.swipe_cb.as_ref(),
             None => None,
         }
     }
@@ -443,6 +511,34 @@ impl RustTouchbarDelegateWrapper {
         self.bar_map.get_mut(&bar_id).unwrap().items.clear();
         for subbar in subbars {
             self.free_bar_allocations(subbar);
+        }
+    }
+    unsafe fn set_label_font_for_text(label: *mut Object, text: &str) {
+        //let constraints: *mut Object = msg_send![label, constraints];
+        //let height_constraint: *mut Object = msg_send![constraints, firstObject];
+        //if height_constraint != nil {
+        //    // TODO: if re-enabled, must use NSLayoutConstraint identifier to
+        //    // make sure the correct constraint is removed
+        //    msg_send![label, removeConstraint: height_constraint];
+        //}
+        if text.contains("\n") {
+            // Shrink font for multi-line labels.  This makes for quite small text.
+            let cls = Class::get("NSFont").unwrap();
+            let default_size:f64 = msg_send![cls, systemFontSize];
+            let custom_font: *mut Object = msg_send![cls, systemFontOfSize: default_size - 3.0];
+            msg_send![label, setFont: custom_font];
+
+            //let anchor: *mut Object = msg_send![label, heightAnchor];
+            //let constraint: *mut Object = msg_send![anchor, constraintEqualToConstant: 30. as f64];
+            //let _ = msg_send![constraint, setActive: YES];
+        }
+        else {
+            // Enlarge the font for single lines.  For some reason it defaults
+            // to smaller than other elements.
+            let cls = Class::get("NSFont").unwrap();
+            let default_size:f64 = msg_send![cls, systemFontSize];
+            let custom_font: *mut Object = msg_send![cls, systemFontOfSize: default_size + 3.0];
+            msg_send![label, setFont: custom_font];
         }
     }
 }
@@ -520,6 +616,7 @@ impl TTouchbar for Touchbar {
                 scrubber: None,
                 button_cb: None,
                 slider_cb: None,
+                swipe_cb: None,
                 child_bar: Some(bar as ItemId),
             };
             self.item_map.insert(item as u64, internal);
@@ -565,6 +662,7 @@ impl TTouchbar for Touchbar {
             let cls = Class::get("NSTextField").unwrap();
             let label: *mut Object = msg_send![cls, alloc];
             let label: *mut Object = msg_send![label, initWithFrame: frame];
+            RustTouchbarDelegateWrapper::set_label_font_for_text(label, text);
             let _:() = msg_send![label, setEditable: NO];
             let cell: *mut Object = msg_send![label, cell];
             let _:() = msg_send![cell, setWraps: NO];
@@ -586,6 +684,7 @@ impl TTouchbar for Touchbar {
                 scrubber: None,
                 button_cb: None,
                 slider_cb: None,
+                swipe_cb: None,
                 child_bar: None
             };
             self.item_map.insert(item as u64, internal);
@@ -596,6 +695,7 @@ impl TTouchbar for Touchbar {
         unsafe {
             let item: *mut Object = *label_id as *mut Object;
             let label: *mut Object = msg_send![item, view];
+            RustTouchbarDelegateWrapper::set_label_font_for_text(label, text);
             let text = NSString::alloc(nil).init_str(text);
             let _:() = msg_send![label, setStringValue: text];
             let _ = msg_send![text, release];
@@ -651,6 +751,7 @@ impl TTouchbar for Touchbar {
                 scrubber: Some(data),
                 button_cb: None,
                 slider_cb: None,
+                swipe_cb: None,
                 child_bar: None,
             };
             self.item_map.insert(item as u64, internal);
@@ -674,6 +775,27 @@ impl TTouchbar for Touchbar {
             if sel_idx >= 0 {
                 let _:() = msg_send![scrubber, setSelectedIndex: sel_idx];
             }
+        }
+    }
+
+    fn add_item_swipe_gesture(&mut self, item_id: &ItemId, cb: SwipeCb) {
+        unsafe {
+            let item = *item_id as *mut Object;
+            let view: *mut Object = msg_send![item, view];
+            if view == nil {
+                return;
+            }
+            msg_send![view, setAllowedTouchTypes: 1]; // NSTouchTypeMaskDirect
+            let cls = Class::get("NSPanGestureRecognizer").unwrap();
+            let gesture: *mut Object = msg_send![cls, alloc];
+            let gesture: *mut Object = msg_send![gesture,
+                                                 initWithTarget: self.objc.clone()
+                                                 action: sel!(swipeGesture:)];
+            msg_send![gesture, setAllowedTouchTypes: 1]; // NSTouchTypeMaskDirect
+            msg_send![view, addGestureRecognizer: gesture];
+            let mut internal_item = self.item_map.remove(item_id).unwrap();
+            internal_item.swipe_cb = Some(cb);
+            self.item_map.insert(*item_id, internal_item);
         }
     }
 
@@ -703,6 +825,7 @@ impl TTouchbar for Touchbar {
                 scrubber: None,
                 button_cb: None,
                 slider_cb: None,
+                swipe_cb: None,
                 child_bar: None,
             };
             self.item_map.insert(s as u64, internal);
@@ -748,6 +871,7 @@ impl TTouchbar for Touchbar {
                 scrubber: None,
                 button_cb: Some(cb),
                 slider_cb: None,
+                swipe_cb: None,
                 child_bar: None,
             };
             self.item_map.insert(item as u64, internal);
@@ -810,6 +934,7 @@ impl TTouchbar for Touchbar {
                 scrubber: None,
                 button_cb: None,
                 slider_cb: Some(cb),
+                swipe_cb: None,
                 child_bar: None,
             };
             self.item_map.insert(item as u64, internal);
@@ -961,7 +1086,39 @@ impl INSObject for ObjcAppDelegate {
                     let ptr: u64 = *this.get_ivar("_rust_wrapper");
                     let wrapper = &mut *(ptr as *mut RustTouchbarDelegateWrapper);
                     if let Some(ref cb) = wrapper.find_button_cb(sender) {
-                        cb(sender);
+                        // Sender is the button.  Find the owning touchbar item:
+                        let item = wrapper.find_view_from_control(&sender).unwrap();
+                        cb(&(item as u64));
+                    }
+                }
+            }
+            extern fn objc_swipe_gesture(this: &mut Object, _cmd: Sel, sender: u64) {
+                unsafe {
+                    let ptr: u64 = *this.get_ivar("_rust_wrapper");
+                    let wrapper = &mut *(ptr as *mut RustTouchbarDelegateWrapper);
+                    let gesture = sender as *mut Object;
+                    let view: *mut Object = msg_send![gesture, view];
+                    let translation: NSPoint = msg_send![gesture,
+                                                         translationInView: view];
+                    let gesture_state: u32 = msg_send![gesture, state];
+                    let state = match gesture_state {
+                        // NSGestureRecognizerStateBegan
+                        1 => SwipeState::Began,
+                        // NSGestureRecognizerStateChanged
+                        2 => SwipeState::Changed,
+                        // NSGestureRecognizerStateEnded
+                        3 => SwipeState::Ended,
+                        // NSGestureRecognizerStatePossible,
+                        // NSGestureRecognizerStateCancelled,
+                        // NSGestureRecognizerStateFailed
+                        _ => SwipeState::Unknown,
+                    };
+                    if state != SwipeState::Unknown {
+                        if let Some(ref cb) = wrapper.find_swipe_cb(view as u64) {
+                            // Sender is the view.  Find the owning touchbar item:
+                            let item = wrapper.find_view_from_control(&(view as u64)).unwrap();
+                            cb(&(item as u64), state, translation.x);
+                        }
                     }
                 }
             }
@@ -973,7 +1130,7 @@ impl INSObject for ObjcAppDelegate {
                         let item = sender as *mut Object;
                         let slider: *mut Object = msg_send![item, slider];
                         let value: f64 = msg_send![slider, doubleValue];
-                        cb(sender, value);
+                        cb(&sender, value);
                     }
                 }
             }
@@ -1061,6 +1218,9 @@ impl INSObject for ObjcAppDelegate {
 
                 let f: extern fn(&mut Object, Sel, u64) = objc_button;
                 decl.add_method(sel!(button:), f);
+
+                let f: extern fn(&mut Object, Sel, u64) = objc_swipe_gesture;
+                decl.add_method(sel!(swipeGesture:), f);
 
                 let f: extern fn(&mut Object, Sel, u64) = objc_slider;
                 decl.add_method(sel!(slider:), f);

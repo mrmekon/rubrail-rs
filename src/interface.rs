@@ -45,7 +45,7 @@ pub type ItemId = u64;
 /// # Arguments
 ///
 /// * first - `ItemId` of the button that was pressed
-pub type ButtonCb = Box<Fn(ItemId)>;
+pub type ButtonCb = Box<Fn(&ItemId)>;
 
 /// A callback that is called when the value of a slide on a Touch Bar changes
 ///
@@ -56,7 +56,21 @@ pub type ButtonCb = Box<Fn(ItemId)>;
 ///
 /// * first - `ItemId` of the slider that was changed
 /// * second - Current value of the slider
-pub type SliderCb = Box<Fn(ItemId, f64)>;
+pub type SliderCb = Box<Fn(&ItemId, f64)>;
+
+/// A callback that is called when an item is swiped
+///
+/// `SwipeCb` is expected to be a Boxed closure, and it receives the
+/// `ItemId` of an item as it is being swiped if a swipe gesture recognizer
+/// has been added to the item.
+///
+/// # Arguments
+///
+/// * first - `ItemId` of the item that was swiped
+/// * second - `SwipeState` representing the current gesture's lifecycle
+/// * third - Horizontal translation of the swipe, in pixels (positive is right,
+///   negative is left).
+pub type SwipeCb = Box<Fn(&ItemId, SwipeState, f64)>;
 
 /// An allocated image that can be added to items
 ///
@@ -64,6 +78,19 @@ pub type SliderCb = Box<Fn(ItemId, f64)>;
 /// Apple template image, and then registered with Touch Bar items that support
 /// images, such as buttons and popovers.
 pub type TouchbarImage = u64;
+
+/// State of the current swipe gesture on an item
+#[derive(PartialEq, Debug)]
+pub enum SwipeState {
+    /// Swipe gesture is newly detected (finger touched)
+    Began,
+    /// Existing swipe gesture has continued/changed (finger swiped)
+    Changed,
+    /// Swipe gesture has ended (finger lifted)
+    Ended,
+    /// Invalid state.  Never sent to callbacks.
+    Unknown,
+}
 
 /// Identifiers for Apple's standard button image templates
 #[allow(missing_docs)]
@@ -402,6 +429,20 @@ pub trait TTouchbar {
     /// * `scrub_id` - Scrubber to refresh
     ///
     fn refresh_scrubber(&mut self, scrub_id: &ItemId) {}
+
+    /// Register a swipe gesture handler with a Touch Bar item
+    ///
+    /// Registers a callback to be called when the given item is swiped with a
+    /// horizontal motion.  This can be used to detect a finger sliding back and
+    /// forth on a Touch Bar item, even for items that are normally
+    /// non-interactive (like labels).
+    ///
+    /// # Arguments
+    ///
+    /// * `item` - Item to add the gesture detection to
+    /// * `cb` - Callback to call when a touch is detected
+    ///
+    fn add_item_swipe_gesture(&mut self, item: &ItemId, cb: SwipeCb) {}
 
     /// Create space between items in a bar
     ///

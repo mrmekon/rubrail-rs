@@ -98,11 +98,7 @@ pub use dummy::DummyTouchbar as Touchbar;
 pub use touchbar::util;
 
 #[cfg(not(feature = "private_api"))]
-pub mod util {
-    pub fn print_nsstring(_str: *mut u64) {}
-    pub fn nsstring_decode(_str: *mut u64) -> String { String::new() }
-    pub fn bundled_resource_path(_name: &str, _extension: &str) -> Option<String> { None }
-}
+pub use dummy::util;
 
 /// Module for creating and running a simple Mac application
 ///
@@ -140,6 +136,7 @@ pub mod app {
         }
     }
     #[cfg(not(feature = "private_api"))]
+    ///
     pub fn init_app() {}
 
     #[cfg(target_os = "macos")]
@@ -158,6 +155,7 @@ pub mod app {
         }
     }
     #[cfg(not(feature = "private_api"))]
+    ///
     pub fn run_forever() { loop {} }
 
     #[cfg(target_os = "macos")]
@@ -176,6 +174,7 @@ pub mod app {
         }
     }
     #[cfg(not(feature = "private_api"))]
+    ///
     pub fn quit() {
         process::exit(0);
     }
