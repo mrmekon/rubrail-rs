@@ -76,6 +76,11 @@ fn populate(bar_rc: Rc<RefCell<Touchbar>>, count: u32) {
     tb.update_label(&label1_id, "This is a label\nWith two rows");
     tb.update_label_width(&label1_id, 100);
 
+    // Support double-clicking the label with one finger
+    tb.add_item_tap_gesture(&label1_id, 2, 1, Box::new(move |item| {
+        info!("Label double-clicked!");
+    }));
+
     // Add a swipe gesture to the label that changes the text color to
     // increasingly green as you swipe right, or increasingly red as you swipe
     // left, and resets to white when released.
