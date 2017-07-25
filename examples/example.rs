@@ -21,6 +21,7 @@ use rubrail::Touchbar;
 use rubrail::TTouchbar;
 use rubrail::TScrubberData;
 use rubrail::ItemId;
+use rubrail::SwipeState;
 
 #[macro_use]
 extern crate log;
@@ -71,7 +72,30 @@ fn populate(bar_rc: Rc<RefCell<Touchbar>>, count: u32) {
     }));
 
     // Create a text label for the root bar
-    let label1_id = tb.create_label("This is a label\nWith two rows");
+    let label1_id = tb.create_label("This is a label");
+    tb.update_label(&label1_id, "This is a label\nWith two rows");
+    tb.update_label_width(&label1_id, 100);
+
+    // Add a swipe gesture to the label that changes the text color to
+    // increasingly green as you swipe right, or increasingly red as you swipe
+    // left, and resets to white when released.
+    tb.add_item_swipe_gesture(&label1_id, Box::new(move |item,state,translation| {
+        let color: f64 = match translation.abs().trunc() as u32 {
+            t if t < 10 => 1.0,
+            t if t > 100 => 0.0,
+            _ => (45. / translation.abs()),
+        };
+        let rgba = match state {
+            SwipeState::Ended => (1.0, 1.0, 1.0, 1.0),
+            _ => {
+                match translation.is_sign_positive() {
+                    true => (color, 1.0, color, 1.0),
+                    false => (1.0, color, color, 1.0),
+                }
+            }
+        };
+        unsafe { rubrail::util::set_text_color(item, rgba.0, rgba.1, rgba.2, rgba.3); }
+    }));
 
     // Create a data backend for scrolling text "scrubbers"
     let scrubber = Rc::new(TouchbarHandler {
@@ -97,7 +121,8 @@ fn populate(bar_rc: Rc<RefCell<Touchbar>>, count: u32) {
     tb.select_scrubber_item(&scrubber2_id, 3);
 
     // Create a slider for the popbar.
-    let slider1_id = tb.create_slider(0.0, 50.0, Box::new(move |_s,v| {info!("Slid to: {}", v);}));
+    let slider1_id = tb.create_slider(0.0, 50.0, Some("Slide"), true,
+                                      Box::new(move |_s,v| {info!("Slid to: {}", v);}));
     tb.update_slider(&slider1_id, 15.0);
 
     // Create a another popbar.  This will make a 2-level deep UI.

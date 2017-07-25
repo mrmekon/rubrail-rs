@@ -51,6 +51,7 @@
 //! Any objects created with a _create*()_ function that are never added to a
 //! bar that is set as the system bar will be leaked.
 //!
+#![deny(missing_docs)]
 
 #[allow(dead_code)]
 #[allow(unused_variables)]
@@ -92,6 +93,13 @@ mod dummy;
 #[cfg(not(feature = "private_api"))]
 pub use dummy::DummyTouchbar as Touchbar;
 
+#[cfg(target_os = "macos")]
+#[cfg(feature = "private_api")]
+pub use touchbar::util;
+
+#[cfg(not(feature = "private_api"))]
+pub use dummy::util;
+
 /// Module for creating and running a simple Mac application
 ///
 /// The `app` module contains helper functions for creating and running a very
@@ -105,6 +113,8 @@ pub mod app {
     extern crate objc;
     extern crate log4rs;
     use std::env;
+    #[cfg(not(feature = "private_api"))]
+    use std::process;
 
     #[cfg(target_os = "macos")]
     #[cfg(feature = "private_api")]
@@ -126,6 +136,7 @@ pub mod app {
         }
     }
     #[cfg(not(feature = "private_api"))]
+    ///
     pub fn init_app() {}
 
     #[cfg(target_os = "macos")]
@@ -144,6 +155,7 @@ pub mod app {
         }
     }
     #[cfg(not(feature = "private_api"))]
+    ///
     pub fn run_forever() { loop {} }
 
     #[cfg(target_os = "macos")]
@@ -162,8 +174,9 @@ pub mod app {
         }
     }
     #[cfg(not(feature = "private_api"))]
+    ///
     pub fn quit() {
-        std::process::exit(0);
+        process::exit(0);
     }
 
     /// Enable logging to a file in the user's home directory

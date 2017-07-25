@@ -45,7 +45,7 @@ pub type ItemId = u64;
 /// # Arguments
 ///
 /// * first - `ItemId` of the button that was pressed
-pub type ButtonCb = Box<Fn(ItemId)>;
+pub type ButtonCb = Box<Fn(&ItemId)>;
 
 /// A callback that is called when the value of a slide on a Touch Bar changes
 ///
@@ -56,7 +56,130 @@ pub type ButtonCb = Box<Fn(ItemId)>;
 ///
 /// * first - `ItemId` of the slider that was changed
 /// * second - Current value of the slider
-pub type SliderCb = Box<Fn(ItemId, f64)>;
+pub type SliderCb = Box<Fn(&ItemId, f64)>;
+
+/// A callback that is called when an item is swiped
+///
+/// `SwipeCb` is expected to be a Boxed closure, and it receives the
+/// `ItemId` of an item as it is being swiped if a swipe gesture recognizer
+/// has been added to the item.
+///
+/// # Arguments
+///
+/// * first - `ItemId` of the item that was swiped
+/// * second - `SwipeState` representing the current gesture's lifecycle
+/// * third - Horizontal translation of the swipe, in pixels (positive is right,
+///   negative is left).
+pub type SwipeCb = Box<Fn(&ItemId, SwipeState, f64)>;
+
+/// An allocated image that can be added to items
+///
+/// A `TouchbarImage` can be created from a path to a file or from a standard
+/// Apple template image, and then registered with Touch Bar items that support
+/// images, such as buttons and popovers.
+pub type TouchbarImage = u64;
+
+/// State of the current swipe gesture on an item
+#[derive(PartialEq, Debug)]
+pub enum SwipeState {
+    /// Swipe gesture is newly detected (finger touched)
+    Began,
+    /// Existing swipe gesture has continued/changed (finger swiped)
+    Changed,
+    /// Swipe gesture has ended (finger lifted)
+    Ended,
+    /// Invalid state.  Never sent to callbacks.
+    Unknown,
+}
+
+/// Identifiers for Apple's standard button image templates
+#[allow(missing_docs)]
+pub enum ImageTemplate {
+    AddDetailTemplate,
+    AddTemplate,
+    AlarmTemplate,
+    AudioInputMuteTemplate,
+    AudioInputTemplate,
+    AudioOutputMuteTemplate,
+    AudioOutputVolumeHighTemplate,
+    AudioOutputVolumeLowTemplate,
+    AudioOutputVolumeMediumTemplate,
+    AudioOutputVolumeOffTemplate,
+    BookmarksTemplate,
+    ColorPickerFill,
+    ColorPickerFont,
+    ColorPickerStroke,
+    CommunicationAudioTemplate,
+    CommunicationVideoTemplate,
+    ComposeTemplate,
+    DeleteTemplate,
+    DownloadTemplate,
+    EnterFullScreenTemplate,
+    ExitFullScreenTemplate,
+    FastForwardTemplate,
+    FolderCopyToTemplate,
+    FolderMoveToTemplate,
+    FolderTemplate,
+    GetInfoTemplate,
+    GoBackTemplate,
+    GoDownTemplate,
+    GoForwardTemplate,
+    GoUpTemplate,
+    HistoryTemplate,
+    IconViewTemplate,
+    ListViewTemplate,
+    MailTemplate,
+    NewFolderTemplate,
+    NewMessageTemplate,
+    OpenInBrowserTemplate,
+    PauseTemplate,
+    PlayheadTemplate,
+    PlayPauseTemplate,
+    PlayTemplate,
+    QuickLookTemplate,
+    RecordStartTemplate,
+    RecordStopTemplate,
+    RefreshTemplate,
+    RewindTemplate,
+    RotateLeftTemplate,
+    RotateRightTemplate,
+    SearchTemplate,
+    ShareTemplate,
+    SidebarTemplate,
+    SkipAhead15SecondsTemplate,
+    SkipAhead30SecondsTemplate,
+    SkipAheadTemplate,
+    SkipBack15SecondsTemplate,
+    SkipBack30SecondsTemplate,
+    SkipBackTemplate,
+    SkipToEndTemplate,
+    SkipToStartTemplate,
+    SlideshowTemplate,
+    TagIconTemplate,
+    TextBoldTemplate,
+    TextBoxTemplate,
+    TextCenterAlignTemplate,
+    TextItalicTemplate,
+    TextJustifiedAlignTemplate,
+    TextLeftAlignTemplate,
+    TextListTemplate,
+    TextRightAlignTemplate,
+    TextStrikethroughTemplate,
+    TextUnderlineTemplate,
+    UserAddTemplate,
+    UserGroupTemplate,
+    UserTemplate
+}
+
+/// Identifiers for the type of spacing available between items
+pub enum SpacerType {
+    /// "Small" space, defined by Apple
+    Small,
+    /// "Large" space, defined by Apple
+    Large,
+    /// Flexible space, grows and shrinks as it can/needs
+    Flexible
+}
 
 /// The callback API for managing data in a Scrubber
 ///
@@ -119,6 +242,7 @@ pub trait TScrubberData {
 /// Apple channels which don't permit private API usage.
 ///
 pub trait TTouchbar {
+    /// A concrete implementation of TTouchbar
     type T: TTouchbar;
 
     /// Allocate a new Touch Bar interface
@@ -207,21 +331,18 @@ pub trait TTouchbar {
     /// can themselves contain more popover items.
     ///
     /// All buttons accept an image, text, or both.  If both are provided, they
-    /// will both be displayed at the same time.  When specifying an image,
-    /// follow Apple's guidelines for icons on Retina displays (40px x 40px @
-    /// 150dpi PNG recommended), and remember to handle paths into the app
-    /// bundle correctly.
+    /// will both be displayed at the same time.
     ///
     /// # Arguments
     ///
-    /// * `image` - Full path to an image to display on the button
+    /// * `image` - An image allocated with a `create_image_*` function
     /// * `text` - Text to display on the button
     /// * `bar_id` - Bar to present when this button is pressed
     ///
     /// # Returns
     ///
     /// A newly allocated item which can be added to a bar.
-    fn create_popover_item(&mut self, image: Option<&str>,
+    fn create_popover_item(&mut self, image: Option<&TouchbarImage>,
                            text: Option<&str>, bar_id: &BarId) -> ItemId {0}
 
     /// Create a new label
@@ -250,6 +371,17 @@ pub trait TTouchbar {
     /// * `text` - New text to display in the existing label
     ///
     fn update_label(&mut self, label_id: &ItemId, text: &str) {}
+
+    /// Changes the width of an existing label
+    ///
+    /// Set a fixed width for a label, in pixels.
+    ///
+    /// # Arguments
+    ///
+    /// * `label_id` - Label item to change
+    /// * `width` - New width of label, in pixels
+    ///
+    fn update_label_width(&mut self, label_id: &ItemId, width: u32) {}
 
     /// Create a horizontally scrolling 'scrubber' of text
     ///
@@ -298,24 +430,115 @@ pub trait TTouchbar {
     ///
     fn refresh_scrubber(&mut self, scrub_id: &ItemId) {}
 
-    /// Create a button that triggers a callback when pressed
+    /// Register a swipe gesture handler with a Touch Bar item
     ///
-    /// All buttons accept an image, text, or both.  If both are provided, they
-    /// will both be displayed at the same time.  When specifying an image,
-    /// follow Apple's guidelines for icons on Retina displays (40px x 40px @
-    /// 150dpi PNG recommended), and remember to handle paths into the app
-    /// bundle correctly.
+    /// Registers a callback to be called when the given item is swiped with a
+    /// horizontal motion.  This can be used to detect a finger sliding back and
+    /// forth on a Touch Bar item, even for items that are normally
+    /// non-interactive (like labels).
     ///
     /// # Arguments
     ///
-    /// * `image` - Full path to an image to display on the button
+    /// * `item` - Item to add the gesture detection to
+    /// * `cb` - Callback to call when a touch is detected
+    ///
+    fn add_item_swipe_gesture(&mut self, item: &ItemId, cb: SwipeCb) {}
+
+    /// Create space between items in a bar
+    ///
+    /// # Arguments
+    ///
+    /// * `space` - The type of spacer to create
+    ///
+    /// # Returns
+    ///
+    /// A newly allocated spacer item that can be added to a bar
+    ///
+    fn create_spacer(&mut self, space: SpacerType) -> ItemId {0}
+
+    /// Create an image from a file path
+    ///
+    /// Creates an image that can be assigned to UI items that display them,
+    /// like buttons and popovers.
+    ///
+    /// Specify a relative or absolute path to the image.
+    ///
+    /// When specifying an image, follow Apple's guidelines for icons on Retina
+    /// displays (40px x 40px @ 150dpi PNG recommended), and remember to handle
+    /// paths into the app bundle correctly.
+    ///
+    /// **WARNING** image memory is _deallocated_ after it is assigned to an
+    /// item.  Do **not** use the same image twice.  If two buttons will have
+    /// the same image, you must allocate the image twice.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - Path to an image file
+    ///
+    /// # Returns
+    ///
+    /// A newly allocated image that can be added to an item
+    ///
+    fn create_image_from_path(&mut self, path: &str) -> TouchbarImage {0}
+
+    /// Create an image from a template
+    ///
+    /// Creates an image that can be assigned to UI items that display them,
+    /// like buttons and popovers.
+    ///
+    /// See `ImageTemplate` for the supported options.  These templates are
+    /// provided by Apple.
+    ///
+    /// **WARNING** image memory is _deallocated_ after it is assigned to an
+    /// item.  Do **not** use the same image twice.  If two buttons will have
+    /// the same image, you must allocate the image twice.
+    ///
+    /// # Arguments
+    ///
+    /// * `template` - Identifier of the image template to use
+    ///
+    /// # Returns
+    ///
+    /// A newly allocated image that can be added to an item
+    ///
+    fn create_image_from_template(&mut self, template: ImageTemplate) -> TouchbarImage {0}
+
+    /// Create a button that triggers a callback when pressed
+    ///
+    /// All buttons accept an image, text, or both.  If both are provided, they
+    /// will both be displayed at the same time.
+    ///
+    /// # Arguments
+    ///
+    /// * `image` - An image allocated with a `create_image_*` function
     /// * `text` - Text to display on the button
     /// * `cb` - Callback to call when the button is pressed
     ///
     /// # Returns
     ///
     /// A newly allocated item which can be added to a bar.
-    fn create_button(&mut self, image: Option<&str>, text: Option<&str>, cb: ButtonCb) -> ItemId {0}
+    fn create_button(&mut self, image: Option<&TouchbarImage>, text: Option<&str>, cb: ButtonCb) -> ItemId {0}
+
+    /// Changes the image and/or text of a button
+    ///
+    /// # Arguments
+    ///
+    /// * `item` - Button item to change
+    /// * `image` - New image to draw on button (optional)
+    /// * `text` - New text to draw on button (optional)
+    ///
+    fn update_button(&mut self, item: &ItemId, image: Option<&TouchbarImage>, text: Option<&str>) {}
+
+    /// Changes the width of an existing button
+    ///
+    /// Set a fixed width for a button, in pixels.
+    ///
+    /// # Arguments
+    ///
+    /// * `button_id` - Button item to change
+    /// * `width` - New width of button, in pixels
+    ///
+    fn update_button_width(&mut self, button_id: &ItemId, width: u32) {}
 
     /// Create a slider item
     ///
@@ -334,12 +557,17 @@ pub trait TTouchbar {
     ///
     /// * `min` - Minimum value (slider all the way left)
     /// * `max` - Maximum value (slider all the way right)
+    /// * `label` - Text label displayed on left of slider (optional)
+    /// * `continuous` - Whether callback is called while sliding, or only
     /// * `cb` - Callback called when the slider value is changed
+    ///   after it is released.
     ///
     /// # Returns
     ///
     /// A newly allocated slider item
-    fn create_slider(&mut self, min: f64, max: f64, cb: SliderCb) -> ItemId {0}
+    fn create_slider(&mut self, min: f64, max: f64,
+                     label: Option<&str>,
+                     continuous: bool, cb: SliderCb) -> ItemId {0}
 
     /// Update the current position of a slider
     ///
