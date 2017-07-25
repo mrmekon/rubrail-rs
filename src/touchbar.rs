@@ -306,6 +306,7 @@ struct InternalItem {
     button_cb: Option<ButtonCb>,
     slider_cb: Option<SliderCb>,
     swipe_cb: Option<SwipeCb>,
+    tap_cb: Option<ButtonCb>,
     child_bar: Option<ItemId>,
 }
 
@@ -335,6 +336,7 @@ impl InternalItem {
             self.scrubber = None;
             self.button_cb = None;
             self.swipe_cb = None;
+            self.tap_cb = None;
             self.slider_cb = None;
         }
     }
@@ -462,6 +464,14 @@ impl RustTouchbarDelegateWrapper {
             x.control.is_some() && x.control.unwrap() as u64 == item
         }).next() {
             Some(item) => item.swipe_cb.as_ref(),
+            None => None,
+        }
+    }
+    fn find_tap_cb(&self, item: u64) -> Option<&ButtonCb> {
+        match self.item_map.values().into_iter().filter(|x| {
+            x.control.is_some() && x.control.unwrap() as u64 == item
+        }).next() {
+            Some(item) => item.tap_cb.as_ref(),
             None => None,
         }
     }
@@ -617,6 +627,7 @@ impl TTouchbar for Touchbar {
                 button_cb: None,
                 slider_cb: None,
                 swipe_cb: None,
+                tap_cb: None,
                 child_bar: Some(bar as ItemId),
             };
             self.item_map.insert(item as u64, internal);
@@ -685,6 +696,7 @@ impl TTouchbar for Touchbar {
                 button_cb: None,
                 slider_cb: None,
                 swipe_cb: None,
+                tap_cb: None,
                 child_bar: None
             };
             self.item_map.insert(item as u64, internal);
@@ -752,6 +764,7 @@ impl TTouchbar for Touchbar {
                 button_cb: None,
                 slider_cb: None,
                 swipe_cb: None,
+                tap_cb: None,
                 child_bar: None,
             };
             self.item_map.insert(item as u64, internal);
@@ -793,8 +806,34 @@ impl TTouchbar for Touchbar {
                                                  action: sel!(swipeGesture:)];
             msg_send![gesture, setAllowedTouchTypes: 1]; // NSTouchTypeMaskDirect
             msg_send![view, addGestureRecognizer: gesture];
+            msg_send![gesture, release];
             let mut internal_item = self.item_map.remove(item_id).unwrap();
             internal_item.swipe_cb = Some(cb);
+            self.item_map.insert(*item_id, internal_item);
+        }
+    }
+
+    fn add_item_tap_gesture(&mut self, item_id: &ItemId, taps: u32,
+                            fingers: u32, cb: ButtonCb) {
+        unsafe {
+            let item = *item_id as *mut Object;
+            let view: *mut Object = msg_send![item, view];
+            if view == nil {
+                return;
+            }
+            msg_send![view, setAllowedTouchTypes: 1]; // NSTouchTypeMaskDirect
+            let cls = Class::get("NSClickGestureRecognizer").unwrap();
+            let gesture: *mut Object = msg_send![cls, alloc];
+            let gesture: *mut Object = msg_send![gesture,
+                                                 initWithTarget: self.objc.clone()
+                                                 action: sel!(tapGesture:)];
+            msg_send![gesture, setAllowedTouchTypes: 1]; // NSTouchTypeMaskDirect
+            msg_send![gesture, setNumberOfTouchesRequired: fingers];
+            msg_send![gesture, setNumberOfClicksRequired: taps];
+            msg_send![view, addGestureRecognizer: gesture];
+            msg_send![gesture, release];
+            let mut internal_item = self.item_map.remove(item_id).unwrap();
+            internal_item.tap_cb = Some(cb);
             self.item_map.insert(*item_id, internal_item);
         }
     }
@@ -826,6 +865,7 @@ impl TTouchbar for Touchbar {
                 button_cb: None,
                 slider_cb: None,
                 swipe_cb: None,
+                tap_cb: None,
                 child_bar: None,
             };
             self.item_map.insert(s as u64, internal);
@@ -872,6 +912,7 @@ impl TTouchbar for Touchbar {
                 button_cb: Some(cb),
                 slider_cb: None,
                 swipe_cb: None,
+                tap_cb: None,
                 child_bar: None,
             };
             self.item_map.insert(item as u64, internal);
@@ -935,6 +976,7 @@ impl TTouchbar for Touchbar {
                 button_cb: None,
                 slider_cb: Some(cb),
                 swipe_cb: None,
+                tap_cb: None,
                 child_bar: None,
             };
             self.item_map.insert(item as u64, internal);
@@ -1092,6 +1134,19 @@ impl INSObject for ObjcAppDelegate {
                     }
                 }
             }
+            extern fn objc_tap_gesture(this: &mut Object, _cmd: Sel, sender: u64) {
+                unsafe {
+                    let ptr: u64 = *this.get_ivar("_rust_wrapper");
+                    let wrapper = &mut *(ptr as *mut RustTouchbarDelegateWrapper);
+                    let gesture = sender as *mut Object;
+                    let view: *mut Object = msg_send![gesture, view];
+                    if let Some(ref cb) = wrapper.find_tap_cb(view as u64) {
+                        // Sender is the view.  Find the owning touchbar item:
+                        let item = wrapper.find_view_from_control(&(view as u64)).unwrap();
+                        cb(&(item as u64));
+                    }
+                }
+            }
             extern fn objc_swipe_gesture(this: &mut Object, _cmd: Sel, sender: u64) {
                 unsafe {
                     let ptr: u64 = *this.get_ivar("_rust_wrapper");
@@ -1218,6 +1273,9 @@ impl INSObject for ObjcAppDelegate {
 
                 let f: extern fn(&mut Object, Sel, u64) = objc_button;
                 decl.add_method(sel!(button:), f);
+
+                let f: extern fn(&mut Object, Sel, u64) = objc_tap_gesture;
+                decl.add_method(sel!(tapGesture:), f);
 
                 let f: extern fn(&mut Object, Sel, u64) = objc_swipe_gesture;
                 decl.add_method(sel!(swipeGesture:), f);

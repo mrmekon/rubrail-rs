@@ -1,3 +1,7 @@
+0.5.0
+-----
+ * Support tap gestures
+
 0.4.0
 -----
  * Fix crash when setting main touchbar icon

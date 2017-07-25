@@ -430,6 +430,27 @@ pub trait TTouchbar {
     ///
     fn refresh_scrubber(&mut self, scrub_id: &ItemId) {}
 
+    /// Register a tap gesture handler with a Touch Bar item
+    ///
+    /// Registers a callback to be called when the given item is tapped with a
+    /// one or more fingers.  This works  even for items that are normally
+    /// non-interactive (like labels).
+    ///
+    /// Supports specifying number of taps (i.e. double- or triple-click), and
+    /// number of fingers independently.  For instance, set `taps` to 2 and
+    /// `fingers` to 3 to require double-clicking with 3 fingers at the same
+    /// time.
+    ///
+    /// # Arguments
+    ///
+    /// * `item_id` - Item to add the gesture detection to
+    /// * `taps` - Number of discrete taps to trigger callback
+    /// * `fingers` - Number of simultaneous fingers needed
+    /// * `cb` - Callback to call when a tap is detected
+    ///
+    fn add_item_tap_gesture(&mut self, item_id: &ItemId, taps: u32,
+                            fingers: u32, cb: ButtonCb) {}
+
     /// Register a swipe gesture handler with a Touch Bar item
     ///
     /// Registers a callback to be called when the given item is swiped with a
