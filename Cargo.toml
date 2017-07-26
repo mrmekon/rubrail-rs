@@ -1,6 +1,6 @@
 [package]
 name = "rubrail"
-version = "0.4.2"
+version = "0.4.3-rc"
 authors = ["Trevor Bentley <mrmekon@gmail.com>"]
 description = "Rubrail is a Rust library for interfacing with the Mac Touch Bar"
 keywords = ["macos", "touchbar", "osx", "mac"]
