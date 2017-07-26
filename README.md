@@ -34,11 +34,21 @@ To communicate with the Touch Bar service, apps using Rubrail *must* be executed
 
 The included example comes with a bundling script (examples/example.sh) and a launcher (examples/example_launcher.rs) to move itself into an app bundle and execute.
 
+
 ### Limitations
 
 There is no support for changing the UI of an existing bar.  To change the UI layout, you must create a new bar and completely replace the old one.  Scrubbers are an exception: their contents are managed by callbacks, but they do not live-refresh when the bar is visible.  The user must close and re-open the bar to see scrubber content changes.
 
 The Touch Bar API supports doing just about anything with custom views.  Rubrail does not.  Only a very limited set of UI options are exposed.
+
+#### Linking
+
+Rubrail links against the private Apple framework `DFRFoundation.framework`.  This is handled by adding the private framework path in `build.rs`.  Applications that _use_ Rubrail do not need to link against it themselves, but should be aware that a dependency does.
+
+Linking requires an XCode version high enough to support the Touch Bar and the private framework.  The only tested version of XCode is version 8.3.  Applications that use Rubrail **must** build with a new enough XCode version.  If using Travis-CI, this means adding a line like this to your `.travis.yml`:
+
+`osx_image: xcode8.3`
+
 
 ### Known Bugs
 
