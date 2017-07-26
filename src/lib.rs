@@ -58,14 +58,17 @@
 mod interface;
 pub use interface::*;
 
+#[allow(unused_imports)]
+#[macro_use]
+extern crate log;
+
+//
+// Mac+TouchBar imports
+//
 #[cfg(target_os = "macos")]
 #[cfg(feature = "private_api")]
 #[macro_use]
 mod wrapper;
-
-#[allow(unused_imports)]
-#[macro_use]
-extern crate log;
 
 #[cfg(target_os = "macos")]
 #[cfg(feature = "private_api")]
@@ -77,27 +80,25 @@ extern crate objc;
 #[macro_use]
 mod touchbar;
 
-/// Main controller for creating and using Touch Bar UIs
-///
-/// Blah
 #[cfg(target_os = "macos")]
 #[cfg(feature = "private_api")]
 pub use touchbar::Touchbar as Touchbar;
-
-#[cfg(not(feature = "private_api"))]
-mod dummy;
-
-/// Main controller for creating and using Touch Bar UIs
-///
-/// Blah
-#[cfg(not(feature = "private_api"))]
-pub use dummy::DummyTouchbar as Touchbar;
 
 #[cfg(target_os = "macos")]
 #[cfg(feature = "private_api")]
 pub use touchbar::util;
 
-#[cfg(not(feature = "private_api"))]
+
+//
+// Non-Mac/Dummy TouchBar imports
+//
+#[cfg(not(all(target_os = "macos", feature = "private_api")))]
+mod dummy;
+
+#[cfg(not(all(target_os = "macos", feature = "private_api")))]
+pub use dummy::DummyTouchbar as Touchbar;
+
+#[cfg(not(all(target_os = "macos", feature = "private_api")))]
 pub use dummy::util;
 
 /// Module for creating and running a simple Mac application
@@ -113,7 +114,7 @@ pub mod app {
     extern crate objc;
     extern crate log4rs;
     use std::env;
-    #[cfg(not(feature = "private_api"))]
+    #[cfg(not(all(target_os = "macos", feature = "private_api")))]
     use std::process;
 
     #[cfg(target_os = "macos")]
@@ -135,7 +136,7 @@ pub mod app {
             let _ = msg_send![app, setActivationPolicy: 1]; // NSApplicationActivationPolicyAccessory
         }
     }
-    #[cfg(not(feature = "private_api"))]
+    #[cfg(not(all(target_os = "macos", feature = "private_api")))]
     ///
     pub fn init_app() {}
 
@@ -154,7 +155,7 @@ pub mod app {
             let _ = msg_send![app, run];
         }
     }
-    #[cfg(not(feature = "private_api"))]
+    #[cfg(not(all(target_os = "macos", feature = "private_api")))]
     ///
     pub fn run_forever() { loop {} }
 
@@ -173,7 +174,7 @@ pub mod app {
             let _ = msg_send![app, terminate: 0];
         }
     }
-    #[cfg(not(feature = "private_api"))]
+    #[cfg(not(all(target_os = "macos", feature = "private_api")))]
     ///
     pub fn quit() {
         process::exit(0);

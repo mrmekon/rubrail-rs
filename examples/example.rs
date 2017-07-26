@@ -77,7 +77,7 @@ fn populate(bar_rc: Rc<RefCell<Touchbar>>, count: u32) {
     tb.update_label_width(&label1_id, 100);
 
     // Support double-clicking the label with one finger
-    tb.add_item_tap_gesture(&label1_id, 2, 1, Box::new(move |item| {
+    tb.add_item_tap_gesture(&label1_id, 2, 1, Box::new(move |_item| {
         info!("Label double-clicked!");
     }));
 
