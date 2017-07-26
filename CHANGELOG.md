@@ -1,3 +1,7 @@
+0.4.2
+-----
+ * Fix building on non-Mac platforms, and in "dummy" mode
+
 0.4.1
 -----
  * Support tap gestures
