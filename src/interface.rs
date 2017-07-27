@@ -88,6 +88,13 @@ pub enum SwipeState {
     Changed,
     /// Swipe gesture has ended (finger lifted)
     Ended,
+    /// Swipe was cancelled by user
+    ///
+    /// Happens when interrupted, such as when doing a single-finger swipe and
+    /// then putting down a second finger.
+    Cancelled,
+    /// Swipe failed... I dunno, ask Apple.
+    Failed,
     /// Invalid state.  Never sent to callbacks.
     Unknown,
 }
