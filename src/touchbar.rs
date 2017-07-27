@@ -1163,9 +1163,11 @@ impl INSObject for ObjcAppDelegate {
                         2 => SwipeState::Changed,
                         // NSGestureRecognizerStateEnded
                         3 => SwipeState::Ended,
-                        // NSGestureRecognizerStatePossible,
                         // NSGestureRecognizerStateCancelled,
+                        4 => SwipeState::Cancelled,
                         // NSGestureRecognizerStateFailed
+                        5 => SwipeState::Failed,
+                        // NSGestureRecognizerStatePossible,
                         _ => SwipeState::Unknown,
                     };
                     if state != SwipeState::Unknown {
