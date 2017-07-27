@@ -1,3 +1,7 @@
+0.4.3
+-----
+ * Report cancelled and failed swipe gestures
+
 0.4.2
 -----
  * Fix building on non-Mac platforms, and in "dummy" mode
