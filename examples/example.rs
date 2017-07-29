@@ -6,16 +6,16 @@
 // Usage notes:
 //
 // To access the touchbar, Rubrail *must* execute inside an OS X app bundle.
-// Since Cargo doesn't do that itself, this example is packaged with a second
-// wrapper example (example_launcher), and a bundling script (example.sh).
-// They can all be used together to setup and run the example from a bundle.
+// Since Cargo doesn't do that itself, this example uses the Trampoline feature
+// of the fruitbasket crate to relaunch itself in an app bundle.
 //
 // Simply run:
 //
-// $ cargo test && cargo run --example example_launcher
+// $ cargo test && cargo run --example example
 //
 //
 extern crate rubrail;
+extern crate fruitbasket;
 
 use rubrail::Touchbar;
 use rubrail::TTouchbar;
@@ -153,10 +153,19 @@ fn populate(bar_rc: Rc<RefCell<Touchbar>>, count: u32) {
 
 fn main() {
     // Write log to home directory
-    rubrail::app::create_logger(".rubrail.log");
+    fruitbasket::create_logger(".rubrail.log", fruitbasket::LogDir::Home, 5, 2).unwrap();
 
-    // Initialize OS X application.  A real app should probably not use this.
-    rubrail::app::init_app();
+    // Initialize OS X application.
+    let icon = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("examples").join("icon.png");
+    let mut nsapp = fruitbasket::Trampoline::new(
+        "rubrail_example", "rubrail_example", "com.trevorbentley.rubrail_example")
+        .icon("icon.png")
+        .version(env!("CARGO_PKG_VERSION"))
+        .plist_key("LSBackgroundOnly", "1")
+        .resource(icon.to_str().unwrap())
+        .build(fruitbasket::InstallDir::Custom("target/".to_string())).unwrap();
+    nsapp.set_activation_policy(fruitbasket::ActivationPolicy::Prohibited);
 
     // Initialize the touchbar
     let bar_rc = Rc::new(RefCell::new(Touchbar::alloc("bar")));
@@ -164,7 +173,6 @@ fn main() {
     // Populate the touchbar with UI elements
     populate(bar_rc.clone(), 1);
 
-    // Enter OS X application loop.  A real application should probably implement
-    // this itself.
-    rubrail::app::run_forever();
+    // Enter OS X application loop.
+    nsapp.run(fruitbasket::RunPeriod::Forever);
 }

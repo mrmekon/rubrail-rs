@@ -28,11 +28,11 @@
 //! be registered with the system and will not display on the Control Strip,
 //! making it inaccessible to the user.
 //!
-//! The examples are bundled with a script to generate a minimal valid app
-//! bundle, and a wrapper example to move the real example into a bundle and
-//! execute it.  You can execute the examples correctly with this comand:
+//! The included example uses [fruitbasket](https://github.com/mrmekon/fruitbasket)
+//! to automatically bundle itself into an OS X app at runtime.  You can run the
+//! example with:
 //!
-//! `$ cargo test && cargo run --example example_launcher`
+//! `$ cargo test && cargo run --example example`
 //!
 //! # Memory Management
 //!
