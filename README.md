@@ -12,7 +12,7 @@ Source for following screencast in `examples/example.rs`
 
 ## Run the example
 
-`$ cargo test && cargo run --example example_launcher`
+`$ cargo test && cargo run --example example`
 
 ## Cargo Crate
 
@@ -32,7 +32,7 @@ Note that access to the Control Strip is forbidden by Apple's guidelines.  Rubra
 
 To communicate with the Touch Bar service, apps using Rubrail *must* be executed from an app bundle (.app).  Running the executable directly will not crash, but the icon will not be registered with the Touch Bar service, so your Touch Bar UI will be unavailable.
 
-The included example comes with a bundling script (examples/example.sh) and a launcher (examples/example_launcher.rs) to move itself into an app bundle and execute.
+The included example uses the [fruitbasket](https://github.com/mrmekon/fruitbasket) crate to automatically re-launch itself as an OS X app bundle.
 
 
 ### Limitations

@@ -28,11 +28,11 @@
 //! be registered with the system and will not display on the Control Strip,
 //! making it inaccessible to the user.
 //!
-//! The examples are bundled with a script to generate a minimal valid app
-//! bundle, and a wrapper example to move the real example into a bundle and
-//! execute it.  You can execute the examples correctly with this comand:
+//! The included example uses [fruitbasket](https://github.com/mrmekon/fruitbasket)
+//! to automatically bundle itself into an OS X app at runtime.  You can run the
+//! example with:
 //!
-//! `$ cargo test && cargo run --example example_launcher`
+//! `$ cargo test && cargo run --example example`
 //!
 //! # Memory Management
 //!
@@ -100,135 +100,6 @@ pub use dummy::DummyTouchbar as Touchbar;
 
 #[cfg(not(all(target_os = "macos", feature = "private_api")))]
 pub use dummy::util;
-
-/// Module for creating and running a simple Mac application
-///
-/// The `app` module contains helper functions for creating and running a very
-/// simple Mac application environment (NSApplication) with no window or dock
-/// icon.  It is provided here for the Rubrail examples to use, and may be
-/// useful for simple Touch Bar-only applications, but 'real' applications
-/// should probably implement the application logic themselves.
-pub mod app {
-    #[cfg(target_os = "macos")]
-    #[cfg(feature = "private_api")]
-    extern crate objc;
-    extern crate log4rs;
-    use std::env;
-    #[cfg(not(all(target_os = "macos", feature = "private_api")))]
-    use std::process;
-
-    #[cfg(target_os = "macos")]
-    #[cfg(feature = "private_api")]
-    /// Initialize a Mac application environment (NSApplication)
-    ///
-    /// This is a debug/convenience function for creating a window-less Mac
-    /// application.  It can be used in simple Touch Bar-only applications,
-    /// and is used by the examples, but more complex applications will want
-    /// to handle the application creation themselves.
-    ///
-    /// It initializes an NSApplication with the
-    /// _NSApplicationActivationPolicyAccessory_ policy, which means it will
-    /// have no window and no dock icon.
-    pub fn init_app() {
-        unsafe {
-            let cls = objc::runtime::Class::get("NSApplication").unwrap();
-            let app: *mut objc::runtime::Object = msg_send![cls, sharedApplication];
-            let _ = msg_send![app, setActivationPolicy: 1]; // NSApplicationActivationPolicyAccessory
-        }
-    }
-    #[cfg(not(all(target_os = "macos", feature = "private_api")))]
-    ///
-    pub fn init_app() {}
-
-    #[cfg(target_os = "macos")]
-    #[cfg(feature = "private_api")]
-    /// Run the application's event loop forever.
-    ///
-    /// This is a debug/convenience function to run the Mac application's event loop
-    /// forever, without returning.  It can be used with `init_app()` to run a
-    /// simple application or example, but more complicated applications should
-    /// implement the run loop themselves.
-    pub fn run_forever() {
-        unsafe {
-            let cls = objc::runtime::Class::get("NSApplication").unwrap();
-            let app: *mut objc::runtime::Object = msg_send![cls, sharedApplication];
-            let _ = msg_send![app, run];
-        }
-    }
-    #[cfg(not(all(target_os = "macos", feature = "private_api")))]
-    ///
-    pub fn run_forever() { loop {} }
-
-    #[cfg(target_os = "macos")]
-    #[cfg(feature = "private_api")]
-    /// Terminate the application run loop and quit.
-    ///
-    /// This is a debug/convenience function to terminate the Mac application and
-    /// end the process.  This can be used with `init_app()` and `run_forever()` for
-    /// simple applications and examples, but more complex applications will want
-    /// to implement custom handling for terminating.
-    pub fn quit() {
-        unsafe {
-            let cls = objc::runtime::Class::get("NSApplication").unwrap();
-            let app: *mut objc::runtime::Object = msg_send![cls, sharedApplication];
-            let _ = msg_send![app, terminate: 0];
-        }
-    }
-    #[cfg(not(all(target_os = "macos", feature = "private_api")))]
-    ///
-    pub fn quit() {
-        process::exit(0);
-    }
-
-    /// Enable logging to a file in the user's home directory
-    ///
-    /// This is a debug function which redirects the log output of Rubrail and its
-    /// examples to a text file of the given name in the user's home directory.
-    ///
-    /// # Arguments
-    ///
-    /// * `filename` - the filename **without** a path.  It is always saved in the
-    /// home directory.
-    ///
-    /// # Example
-    ///
-    /// ```rust,no_run
-    /// extern crate rubrail;
-    /// #[macro_use]
-    /// extern crate log;
-    /// fn main() {
-    ///   rubrail::app::create_logger(".rubrail.log");
-    ///   info!("This message is in ~/.rubrail.log");
-    /// }
-    /// ```
-    pub fn create_logger(filename: &str) {
-        use log::LogLevelFilter;
-        use self::log4rs::append::console::ConsoleAppender;
-        use self::log4rs::append::file::FileAppender;
-        use self::log4rs::encode::pattern::PatternEncoder;
-        use self::log4rs::config::{Appender, Config, Logger, Root};
-
-        let log_path = format!("{}/{}", env::home_dir().unwrap().display(), filename);
-        let stdout = ConsoleAppender::builder()
-            .encoder(Box::new(PatternEncoder::new("{m}{n}")))
-            .build();
-        let requests = FileAppender::builder()
-            .build(&log_path)
-            .unwrap();
-
-        let config = Config::builder()
-            .appender(Appender::builder().build("stdout", Box::new(stdout)))
-            .appender(Appender::builder().build("requests", Box::new(requests)))
-            .logger(Logger::builder().build("app::backend::db", LogLevelFilter::Info))
-            .logger(Logger::builder()
-                    .appender("requests")
-                    .additive(false)
-                    .build("app::requests", LogLevelFilter::Info))
-            .build(Root::builder().appender("stdout").appender("requests").build(LogLevelFilter::Info))
-            .unwrap();
-        let _ = log4rs::init_config(config).unwrap();
-    }
-}
 
 #[cfg(test)]
 mod tests {
