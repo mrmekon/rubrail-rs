@@ -1,3 +1,7 @@
+0.5.0
+-----
+ * Remove Mac app utilities, switch to using fruitbasket crate
+
 0.4.3
 -----
  * Report cancelled and failed swipe gestures
