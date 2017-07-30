@@ -52,7 +52,7 @@ impl TScrubberData for TouchbarHandler {
     }
 }
 
-fn populate(bar_rc: Rc<RefCell<Touchbar>>, count: u32) {
+fn populate(bar_rc: Rc<RefCell<Touchbar>>, count: u32, stopper: fruitbasket::FruitStopper) {
     // Get touchbar from the refcell.  It's wrapped in a cell so
     // it can be passed around in the button callbacks.
     let mut tb = (bar_rc).borrow_mut();
@@ -61,14 +61,15 @@ fn populate(bar_rc: Rc<RefCell<Touchbar>>, count: u32) {
     let mut barid = tb.create_bar();
 
     // Create a quit button for root bar
-    let quit_id = tb.create_button(None, Some("Quit"), Box::new(move |_| {rubrail::app::quit()}));
+    let quit_stopper = stopper.clone();
+    let quit_id = tb.create_button(None, Some("Quit"), Box::new(move |_| {quit_stopper.stop();}));
 
     // Create an action button for the root bar.  When clicked, it will
     // close the bar and re-create itself.
     let bar_copy = bar_rc.clone();
     let text = format!("button{}", count);
     let button1_id = tb.create_button(None, Some(&text), Box::new(move |_| {
-        populate(bar_copy.clone(), count+1)
+        populate(bar_copy.clone(), count+1, stopper.clone())
     }));
 
     // Create a text label for the root bar
@@ -170,8 +171,9 @@ fn main() {
     // Initialize the touchbar
     let bar_rc = Rc::new(RefCell::new(Touchbar::alloc("bar")));
 
+    let stopper = nsapp.stopper();
     // Populate the touchbar with UI elements
-    populate(bar_rc.clone(), 1);
+    populate(bar_rc.clone(), 1, stopper);
 
     // Enter OS X application loop.
     nsapp.run(fruitbasket::RunPeriod::Forever);
