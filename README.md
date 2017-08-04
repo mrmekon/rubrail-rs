@@ -49,7 +49,3 @@ Linking requires an XCode version high enough to support the Touch Bar and the p
 
 `osx_image: xcode8.3`
 
-
-### Known Bugs
-
-Memory leaks!  Memory leaks as far as the eye can see.
