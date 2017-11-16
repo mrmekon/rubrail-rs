@@ -31,7 +31,7 @@ objc-foundation = "0.1.1"
 objc_id = "0.1"
 
 [dependencies.fruitbasket]
-version = "0.4"
+version = "0.5"
 features = ["logging"]
 
 [target."cfg(target_os = \"macos\")".dependencies.objc]

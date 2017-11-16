@@ -783,9 +783,11 @@ impl TTouchbar for Touchbar {
             let item = *scrub_id as *mut Object;
             let scrubber: *mut Object = msg_send![item, view];
             let sel_idx: i32 = msg_send![scrubber, selectedIndex];
+            let pre_count: i32 = msg_send![scrubber, numberOfItems];
             let _:() = msg_send![scrubber, reloadData];
+            let post_count: i32 = msg_send![scrubber, numberOfItems];
             // reload clears the selected item.  re-select it.
-            if sel_idx >= 0 {
+            if sel_idx >= 0 && pre_count == post_count {
                 let _:() = msg_send![scrubber, setSelectedIndex: sel_idx];
             }
         }
