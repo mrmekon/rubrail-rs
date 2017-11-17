@@ -1,6 +1,6 @@
 [package]
 name = "rubrail"
-version = "0.4.4-rc"
+version = "0.5.1-rc"
 authors = ["Trevor Bentley <mrmekon@gmail.com>"]
 description = "Rubrail is a Rust library for interfacing with the Mac Touch Bar"
 keywords = ["macos", "touchbar", "osx", "mac"]
@@ -31,7 +31,7 @@ objc-foundation = "0.1.1"
 objc_id = "0.1"
 
 [dependencies.fruitbasket]
-version = "0.4"
+version = "0.5"
 features = ["logging"]
 
 [target."cfg(target_os = \"macos\")".dependencies.objc]
