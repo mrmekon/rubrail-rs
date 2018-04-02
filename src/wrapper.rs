@@ -90,7 +90,7 @@ macro_rules! objc_subclass {
                         unsafe {
                             //info!("{} retain", $newclass::str_name(this));
                             let superclass = Class::get(stringify!($superclass)).unwrap();
-                            let obj = msg_send![super(this, superclass), retain];
+                            let obj: *mut Object = msg_send![super(this, superclass), retain];
                             //let count: u32 = msg_send![super(this, superclass), retainCount];
                             //info!("{} retain done! {}", $newclass::str_name(this), count);
                             obj
@@ -100,7 +100,7 @@ macro_rules! objc_subclass {
                         unsafe {
                             //info!("{} release", $newclass::str_name(this));
                             let superclass = Class::get(stringify!($superclass)).unwrap();
-                            let _ = msg_send![super(this, superclass), release];
+                            let _: () = msg_send![super(this, superclass), release];
                             //let count: u32 = msg_send![super(this, superclass), retainCount];
                             //info!("{} release done! {}", $newclass::str_name(this), count);
                         }
@@ -109,7 +109,7 @@ macro_rules! objc_subclass {
                         unsafe {
                             info!("{} dealloc", $newclass::str_name(this));
                             let superclass = Class::get(stringify!($superclass)).unwrap();
-                            let _ = msg_send![super(this, superclass), dealloc];
+                            let _: () = msg_send![super(this, superclass), dealloc];
                             //info!("{} dealloc done", $newclass::str_name(this));
                         }
                     }
