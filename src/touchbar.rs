@@ -114,8 +114,8 @@ pub mod util {
             let res = NSString::alloc(nil).init_str(name);
             let ext = NSString::alloc(nil).init_str(extension);
             let ini: *mut Object = msg_send![bundle, pathForResource:res ofType:ext];
-            let _ = msg_send![res, release];
-            let _ = msg_send![ext, release];
+            let _:() = msg_send![res, release];
+            let _:() = msg_send![ext, release];
             let cstr: *const libc::c_char = msg_send![ini, UTF8String];
             if cstr != ptr::null() {
                 let rstr = CStr::from_ptr(cstr).to_string_lossy().into_owned();
@@ -147,7 +147,7 @@ pub mod util {
         let cls = Class::get("NSColor").unwrap();
         let color: *mut Object = msg_send![
             cls, colorWithRed: r green: g blue: b alpha: alpha];
-        msg_send![view, setBackgroundColor: color];
+        let _:() = msg_send![view, setBackgroundColor: color];
     }
 
     /// Sets the textColor attribute on an item's view.
@@ -171,7 +171,7 @@ pub mod util {
         let cls = Class::get("NSColor").unwrap();
         let color: *mut Object = msg_send![
             cls, colorWithRed: r green: g blue: b alpha: alpha];
-        msg_send![view, setTextColor: color];
+        let _:() = msg_send![view, setTextColor: color];
     }
 }
 
@@ -266,7 +266,7 @@ impl ImageTemplate {
                 UserTemplate
             );
             let name = NSString::alloc(nil).init_str(&s);
-            let _ = msg_send![name, autorelease];
+            let _:() = msg_send![name, autorelease];
             name
         }
     }
@@ -324,12 +324,12 @@ impl InternalItem {
             if let Some(obj) = self.control {
                 // Sliders don't allocate their control
                 if self._type != ItemType::Slider {
-                    let _ = msg_send![obj, release];
+                    let _:() = msg_send![obj, release];
                 }
             }
-            let _ = msg_send![self.view, release];
+            let _:() = msg_send![self.view, release];
             let ident = self.ident as *mut Object;
-            let _ = msg_send![ident, release];
+            let _:() = msg_send![ident, release];
             self.view = nil;
             self.ident = 0;
             self.control = None;
@@ -397,13 +397,13 @@ impl RustTouchbarDelegateWrapper {
                 _ => { return nil }
             }
             if text != nil {
-                let _ = msg_send![text, release];
+                let _:() = msg_send![text, release];
             }
             if image != nil {
-                let _ = msg_send![image, release];
+                let _:() = msg_send![image, release];
             }
             // These are auto-released, so they need an explicit retain
-            let _ = msg_send![btn, retain];
+            let _:() = msg_send![btn, retain];
             btn
         }
     }
@@ -536,11 +536,11 @@ impl RustTouchbarDelegateWrapper {
             let cls = Class::get("NSFont").unwrap();
             let default_size:f64 = msg_send![cls, systemFontSize];
             let custom_font: *mut Object = msg_send![cls, systemFontOfSize: default_size - 3.0];
-            msg_send![label, setFont: custom_font];
+            let _:() = msg_send![label, setFont: custom_font];
 
             //let anchor: *mut Object = msg_send![label, heightAnchor];
             //let constraint: *mut Object = msg_send![anchor, constraintEqualToConstant: 30. as f64];
-            //let _ = msg_send![constraint, setActive: YES];
+            //let _:() = msg_send![constraint, setActive: YES];
         }
         else {
             // Enlarge the font for single lines.  For some reason it defaults
@@ -548,7 +548,7 @@ impl RustTouchbarDelegateWrapper {
             let cls = Class::get("NSFont").unwrap();
             let default_size:f64 = msg_send![cls, systemFontSize];
             let custom_font: *mut Object = msg_send![cls, systemFontOfSize: default_size + 3.0];
-            msg_send![label, setFont: custom_font];
+            let _:() = msg_send![label, setFont: custom_font];
         }
     }
 }
@@ -565,10 +565,10 @@ impl TTouchbar for Touchbar {
         });
         unsafe {
             let ptr: u64 = &*rust as *const RustTouchbarDelegateWrapper as u64;
-            let _ = msg_send![rust.objc, setRustWrapper: ptr];
+            let _:() = msg_send![rust.objc, setRustWrapper: ptr];
             let objc_title = NSString::alloc(nil).init_str(title);
-            let _ = msg_send![rust.objc, setTitle: objc_title];
-            let _ = msg_send![objc_title, release];
+            let _:() = msg_send![rust.objc, setTitle: objc_title];
+            let _:() = msg_send![objc_title, release];
         }
         return rust
     }
@@ -577,7 +577,7 @@ impl TTouchbar for Touchbar {
             let filename = NSString::alloc(nil).init_str(image);
             let objc_image = NSImage::alloc(nil).initWithContentsOfFile_(filename);
             let _:() = msg_send![self.objc, setIcon: objc_image];
-            let _ = msg_send![filename, release];
+            let _:() = msg_send![filename, release];
         }
     }
 
@@ -648,7 +648,7 @@ impl TTouchbar for Touchbar {
             }
             let bar = *bar_id as *mut Object;
             let _ : () = msg_send![bar, setDefaultItemIdentifiers: idents];
-            let _ = msg_send![idents, release];
+            let _:() = msg_send![idents, release];
         }
     }
     fn set_bar_as_root(&mut self, bar_id: BarId) {
@@ -664,7 +664,7 @@ impl TTouchbar for Touchbar {
             let _ : () = msg_send![self.objc, setGroupTouchBar: bar_id];
             let ident = self.find_bar_ident(&bar_id).unwrap();
             let _ : () = msg_send![self.objc, setGroupIdent: ident];
-            let _: () = msg_send![self.objc, applicationDidFinishLaunching: 0];
+            let _ : () = msg_send![self.objc, applicationDidFinishLaunching: 0];
         }
     }
     fn create_label(&mut self, text: &str) -> ItemId {
@@ -679,13 +679,13 @@ impl TTouchbar for Touchbar {
             let _:() = msg_send![cell, setWraps: NO];
             let text = NSString::alloc(nil).init_str(text);
             let _:() = msg_send![label, setStringValue: text];
-            let _ = msg_send![text, release];
+            let _:() = msg_send![text, release];
 
             let ident = self.generate_ident();
             let cls = RRCustomTouchBarItem::class();
             let item: *mut Object = msg_send![cls, alloc];
             let item: *mut Object = msg_send![item, initWithIdentifier: ident];
-            msg_send![item, setView: label];
+            let _:() = msg_send![item, setView: label];
 
             let internal = InternalItem {
                 _type: ItemType::Label,
@@ -710,16 +710,16 @@ impl TTouchbar for Touchbar {
             RustTouchbarDelegateWrapper::set_label_font_for_text(label, text);
             let text = NSString::alloc(nil).init_str(text);
             let _:() = msg_send![label, setStringValue: text];
-            let _ = msg_send![text, release];
+            let _:() = msg_send![text, release];
         }
     }
     fn update_label_width(&mut self, label_id: &ItemId, width: u32) {
         unsafe {
-            //let _ = msg_send![label, setAutoresizingMask: 0];
-            //let _ = msg_send![label, setFrameSize: NSSize::new(600., 10.)];
-            //let _ = msg_send![label, setBoundsSize: NSSize::new(600., 10.)];
-            //let _ = msg_send![item, setFrameSize: NSSize::new(600., 30.)];
-            //let _ = msg_send![label, setPreferredMaxLayoutWidth: 500.];
+            //let _:() = msg_send![label, setAutoresizingMask: 0];
+            //let _:() = msg_send![label, setFrameSize: NSSize::new(600., 10.)];
+            //let _:() = msg_send![label, setBoundsSize: NSSize::new(600., 10.)];
+            //let _:() = msg_send![item, setFrameSize: NSSize::new(600., 30.)];
+            //let _:() = msg_send![label, setPreferredMaxLayoutWidth: 500.];
             //let constraints: *mut Object = msg_send![label, constraints];
             //let count: u32 = msg_send![constraints, count];
             //info!("CONSTRAINTS: {}", count);
@@ -727,7 +727,7 @@ impl TTouchbar for Touchbar {
             let label: *mut Object = msg_send![item, view];
             let anchor: *mut Object = msg_send![label, widthAnchor];
             let constraint: *mut Object = msg_send![anchor, constraintEqualToConstant: width as f64];
-            let _ = msg_send![constraint, setActive: YES];
+            let _:() = msg_send![constraint, setActive: YES];
         }
     }
 
@@ -800,15 +800,15 @@ impl TTouchbar for Touchbar {
             if view == nil {
                 return;
             }
-            msg_send![view, setAllowedTouchTypes: 1]; // NSTouchTypeMaskDirect
+            let _:() = msg_send![view, setAllowedTouchTypes: 1]; // NSTouchTypeMaskDirect
             let cls = Class::get("NSPanGestureRecognizer").unwrap();
             let gesture: *mut Object = msg_send![cls, alloc];
             let gesture: *mut Object = msg_send![gesture,
                                                  initWithTarget: self.objc.clone()
                                                  action: sel!(swipeGesture:)];
-            msg_send![gesture, setAllowedTouchTypes: 1]; // NSTouchTypeMaskDirect
-            msg_send![view, addGestureRecognizer: gesture];
-            msg_send![gesture, release];
+            let _:() = msg_send![gesture, setAllowedTouchTypes: 1]; // NSTouchTypeMaskDirect
+            let _:() = msg_send![view, addGestureRecognizer: gesture];
+            let _:() = msg_send![gesture, release];
             let mut internal_item = self.item_map.remove(item_id).unwrap();
             internal_item.swipe_cb = Some(cb);
             self.item_map.insert(*item_id, internal_item);
@@ -823,17 +823,17 @@ impl TTouchbar for Touchbar {
             if view == nil {
                 return;
             }
-            msg_send![view, setAllowedTouchTypes: 1]; // NSTouchTypeMaskDirect
+            let _:() = msg_send![view, setAllowedTouchTypes: 1]; // NSTouchTypeMaskDirect
             let cls = Class::get("NSClickGestureRecognizer").unwrap();
             let gesture: *mut Object = msg_send![cls, alloc];
             let gesture: *mut Object = msg_send![gesture,
                                                  initWithTarget: self.objc.clone()
                                                  action: sel!(tapGesture:)];
-            msg_send![gesture, setAllowedTouchTypes: 1]; // NSTouchTypeMaskDirect
-            msg_send![gesture, setNumberOfTouchesRequired: fingers];
-            msg_send![gesture, setNumberOfClicksRequired: taps];
-            msg_send![view, addGestureRecognizer: gesture];
-            msg_send![gesture, release];
+            let _:() = msg_send![gesture, setAllowedTouchTypes: 1]; // NSTouchTypeMaskDirect
+            let _:() = msg_send![gesture, setNumberOfTouchesRequired: fingers];
+            let _:() = msg_send![gesture, setNumberOfClicksRequired: taps];
+            let _:() = msg_send![view, addGestureRecognizer: gesture];
+            let _:() = msg_send![gesture, release];
             let mut internal_item = self.item_map.remove(item_id).unwrap();
             internal_item.tap_cb = Some(cb);
             self.item_map.insert(*item_id, internal_item);
@@ -856,7 +856,7 @@ impl TTouchbar for Touchbar {
             // And since it doesn't have an ident, just use it as its own ident.  Both
             // the view and ident will be sent a release at shutdown, so retain it an
             // extra time here to keep the references balanced.
-            let _ = msg_send![s, retain];
+            let _:() = msg_send![s, retain];
 
             let internal = InternalItem {
                 _type: ItemType::Spacer,
@@ -879,7 +879,7 @@ impl TTouchbar for Touchbar {
         unsafe {
             let filename = NSString::alloc(nil).init_str(path);
             let objc_image = NSImage::alloc(nil).initWithContentsOfFile_(filename);
-            let _ = msg_send![filename, release];
+            let _:() = msg_send![filename, release];
             objc_image as TouchbarImage
         }
     }
@@ -888,7 +888,7 @@ impl TTouchbar for Touchbar {
         unsafe {
             let cls = Class::get("NSImage").unwrap();
             let image: *mut Object = msg_send![cls, imageNamed: ImageTemplate::objc(template)];
-            let _ = msg_send![image, retain];
+            let _:() = msg_send![image, retain];
             image as TouchbarImage
         }
     }
@@ -903,7 +903,7 @@ impl TTouchbar for Touchbar {
             let cls = RRCustomTouchBarItem::class();
             let item: *mut Object = msg_send![cls, alloc];
             let item: *mut Object = msg_send![item, initWithIdentifier: ident];
-            msg_send![item, setView: btn];
+            let _:() = msg_send![item, setView: btn];
 
             let internal = InternalItem {
                 _type: ItemType::Button,
@@ -928,13 +928,13 @@ impl TTouchbar for Touchbar {
             let btn: *mut Object = msg_send![item, view];
             if let Some(image) = image {
                 let image = *image as *mut Object;
-                let _ = msg_send![btn, setImage: image];
-                let _ = msg_send![image, release];
+                let _:() = msg_send![btn, setImage: image];
+                let _:() = msg_send![image, release];
             }
             if let Some(text) = text {
                 let objc_text = NSString::alloc(nil).init_str(text);
-                let _ = msg_send![btn, setTitle: objc_text];
-                let _ = msg_send![objc_text, release];
+                let _:() = msg_send![btn, setTitle: objc_text];
+                let _:() = msg_send![objc_text, release];
             }
         }
     }
@@ -945,7 +945,7 @@ impl TTouchbar for Touchbar {
             let control: *mut Object = msg_send![item, view];
             let anchor: *mut Object = msg_send![control, widthAnchor];
             let constraint: *mut Object = msg_send![anchor, constraintEqualToConstant: width as f64];
-            let _ = msg_send![constraint, setActive: YES];
+            let _:() = msg_send![constraint, setActive: YES];
         }
     }
 
@@ -960,14 +960,14 @@ impl TTouchbar for Touchbar {
             let slider: *mut Object = msg_send![item, slider];
             if let Some(label) = label {
                 let objc_text: *mut Object = NSString::alloc(nil).init_str(label);
-                msg_send![item, setLabel: objc_text];
-                msg_send![objc_text, release];
+                let _:() = msg_send![item, setLabel: objc_text];
+                let _:() = msg_send![objc_text, release];
             }
-            msg_send![slider, setMinValue: min];
-            msg_send![slider, setMaxValue: max];
-            msg_send![slider, setContinuous: continuous];
-            msg_send![item, setTarget: self.objc.clone()];
-            msg_send![item, setAction: sel!(slider:)];
+            let _:() = msg_send![slider, setMinValue: min];
+            let _:() = msg_send![slider, setMaxValue: max];
+            let _:() = msg_send![slider, setContinuous: continuous];
+            let _:() = msg_send![item, setTarget: self.objc.clone()];
+            let _:() = msg_send![item, setAction: sel!(slider:)];
 
             let internal = InternalItem {
                 _type: ItemType::Slider,
@@ -1068,7 +1068,7 @@ impl INSObject for ObjcAppDelegate {
                             let text_field: *mut Object = msg_send![view, textField];
                             let objc_text: *mut Object = NSString::alloc(nil).init_str(&text);
                             let _:() = msg_send![text_field, setStringValue: objc_text];
-                            let _ = msg_send![objc_text, release];
+                            let _:() = msg_send![objc_text, release];
                             return view as u64;
                         }
                     }
@@ -1118,7 +1118,7 @@ impl INSObject for ObjcAppDelegate {
                     // using the popover's built-in showPopover because that pops
                     // _under_ a system function bar.
                     let cls = Class::get("NSTouchBar").unwrap();
-                    msg_send![cls,
+                    let _:() = msg_send![cls,
                               presentSystemModalFunctionBar: bar
                               systemTrayItemIdentifier: ident];
                     let app = NSApp();
@@ -1200,9 +1200,9 @@ impl INSObject for ObjcAppDelegate {
                     let ident = ident_int as *mut Object;
                     let bar = bar_int as *mut Object;
                     let cls = Class::get("NSTouchBar").unwrap();
-                    msg_send![cls,
-                              presentSystemModalFunctionBar: bar
-                              systemTrayItemIdentifier: ident];
+                    let _:() = msg_send![cls,
+                                         presentSystemModalFunctionBar: bar
+                                         systemTrayItemIdentifier: ident];
                 }
             }
             extern fn objc_touch_bar_make_item_for_identifier(this: &mut Object, _cmd: Sel,
@@ -1227,8 +1227,8 @@ impl INSObject for ObjcAppDelegate {
                     let old_item = old_item_ptr as *mut Object;
                     if old_item != nil {
                         let cls = Class::get("NSTouchBarItem").unwrap();
-                        let _ = msg_send![cls, removeSystemTrayItem: old_item];
-                        let _ = msg_send![old_item, release];
+                        let _:() = msg_send![cls, removeSystemTrayItem: old_item];
+                        let _:() = msg_send![old_item, release];
                     }
 
                     let app = NSApp();
@@ -1238,7 +1238,7 @@ impl INSObject for ObjcAppDelegate {
                     let ident = ident_int as *mut Object;
                     let cls = Class::get("NSCustomTouchBarItem").unwrap();
                     let item: *mut Object = msg_send![cls, alloc];
-                    msg_send![item, initWithIdentifier:ident];
+                    let _:() = msg_send![item, initWithIdentifier:ident];
                     this.set_ivar("_tray_item", item as u64);
 
                     let cls = Class::get("NSButton").unwrap();
@@ -1257,10 +1257,10 @@ impl INSObject for ObjcAppDelegate {
                                         target:this
                                         action:sel!(present:)];
                     }
-                    msg_send![item, setView:btn];
+                    let _:() = msg_send![item, setView:btn];
 
                     let cls = Class::get("NSTouchBarItem").unwrap();
-                    msg_send![cls, addSystemTrayItem: item];
+                    let _:() = msg_send![cls, addSystemTrayItem: item];
                     DFRElementSetControlStripPresenceForIdentifier(ident, YES);
                 }
             }
