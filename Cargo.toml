@@ -21,21 +21,21 @@ private_api = []
 objc_wrapper = []
 
 [dependencies]
-log = "0.3.7"
-log4rs = "0.6.3"
+log = "0.4"
+log4rs = "0.8"
 
 [target."cfg(target_os = \"macos\")".dependencies]
 libc = "0.2"
-cocoa = "0.9.2"
-objc-foundation = "0.1.1"
+cocoa = "0.14"
+objc-foundation = "0.1"
 objc_id = "0.1"
 
 [dependencies.fruitbasket]
-version = "0.5"
+version = "0.6"
 features = ["logging"]
 
 [target."cfg(target_os = \"macos\")".dependencies.objc]
-version = "0.2.2"
+version = "0.2"
 features = ["exception"]
 
 [package.metadata.release]
