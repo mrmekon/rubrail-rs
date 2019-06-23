@@ -68,6 +68,54 @@ extern {
     pub fn DFRElementSetControlStripPresenceForIdentifier(n: *mut Object, x: i8);
 }
 
+#[link(name = "AppKit", kind = "framework")]
+extern {
+    pub static NSAppKitVersionNumber: f64;
+}
+
+#[derive(PartialEq)]
+/// Represents the version number of the current AppKit
+///
+/// MacOS 10.12, for example, would be:
+///   `AppKitVersion {major: 10, minor: 12 }`
+///
+/// Instances of this struct can be compared with comparison operators.
+pub struct AppKitVersion {
+    major: u8,
+    minor: u8,
+}
+
+impl AppKitVersion {
+    pub fn from_f64(v: f64) -> AppKitVersion {
+        // From NSApplication.h
+        let (maj,min) = match v.trunc() as u64 {
+            1504 => (10,12), // Sierra
+            1561 => (10,13), // High Sierra
+            1671 => (10,14), // Mojave
+            _ => (0,0),
+        };
+        AppKitVersion {
+            major: maj,
+            minor: min
+        }
+    }
+    pub fn from_tuple(maj: u8, min: u8) -> AppKitVersion {
+        AppKitVersion { major: maj, minor: min }
+    }
+}
+impl PartialOrd for AppKitVersion {
+    fn partial_cmp(&self, other: &AppKitVersion) -> Option<std::cmp::Ordering> {
+        match self.major.partial_cmp(&other.major) {
+            None => None,
+            Some(std::cmp::Ordering::Equal) => {
+                self.minor.partial_cmp(&other.minor)
+            },
+            rest => rest,
+        }
+        //Some(self.cmp(other))
+    }
+}
+
 pub mod util {
     //! Utility functions for working with the Apple/TouchBar environment
     //!
@@ -83,6 +131,8 @@ pub mod util {
     use objc::runtime::Class;
     use self::cocoa::foundation::NSString;
     use self::cocoa::base::nil;
+    use super::AppKitVersion;
+
     #[allow(dead_code)]
     /// Print an NSString object to the global logger
     pub fn print_nsstring(str: *mut Object) {
@@ -172,6 +222,11 @@ pub mod util {
         let color: *mut Object = msg_send![
             cls, colorWithRed: r green: g blue: b alpha: alpha];
         let _:() = msg_send![view, setTextColor: color];
+    }
+
+    /// Get version of linked Apple AppKit framework
+    pub fn get_appkit_version() -> AppKitVersion {
+        unsafe { AppKitVersion::from_f64(super::NSAppKitVersionNumber) }
     }
 }
 
@@ -656,8 +711,16 @@ impl TTouchbar for Touchbar {
             let old_bar: *mut Object = msg_send![self.objc, groupTouchBar];
             if old_bar != nil {
                 let cls = Class::get("NSTouchBar").unwrap();
-                msg_send![cls, minimizeSystemModalFunctionBar: old_bar];
-                msg_send![cls, dismissSystemModalFunctionBar: old_bar];
+                match util::get_appkit_version() >= AppKitVersion::from_tuple(10, 14) {
+                    true => {
+                        msg_send![cls, minimizeSystemModalTouchBar: old_bar];
+                        msg_send![cls, dismissSystemModalTouchBar: old_bar];
+                    },
+                    false => {
+                        msg_send![cls, minimizeSystemModalFunctionBar: old_bar];
+                        msg_send![cls, dismissSystemModalFunctionBar: old_bar];
+                    },
+                }
                 self.free_bar_allocations(old_bar);
                 msg_send![old_bar, release];
             }
@@ -1118,9 +1181,18 @@ impl INSObject for ObjcAppDelegate {
                     // using the popover's built-in showPopover because that pops
                     // _under_ a system function bar.
                     let cls = Class::get("NSTouchBar").unwrap();
-                    let _:() = msg_send![cls,
-                              presentSystemModalFunctionBar: bar
-                              systemTrayItemIdentifier: ident];
+                    match util::get_appkit_version() >= AppKitVersion::from_tuple(10, 14) {
+                        true => {
+                            let _:() = msg_send![cls,
+                                                 presentSystemModalTouchBar: bar
+                                                 systemTrayItemIdentifier: ident];
+                        },
+                        false => {
+                            let _:() = msg_send![cls,
+                                                 presentSystemModalFunctionBar: bar
+                                                 systemTrayItemIdentifier: ident];
+                        },
+                    }
                     let app = NSApp();
                     let _:() = msg_send![app, setTouchBar: nil];
                 }
@@ -1200,9 +1272,18 @@ impl INSObject for ObjcAppDelegate {
                     let ident = ident_int as *mut Object;
                     let bar = bar_int as *mut Object;
                     let cls = Class::get("NSTouchBar").unwrap();
-                    let _:() = msg_send![cls,
-                                         presentSystemModalFunctionBar: bar
-                                         systemTrayItemIdentifier: ident];
+                    match util::get_appkit_version() >= AppKitVersion::from_tuple(10, 14) {
+                        true => {
+                            let _:() = msg_send![cls,
+                                                 presentSystemModalTouchBar: bar
+                                                 systemTrayItemIdentifier: ident];
+                        },
+                        false => {
+                            let _:() = msg_send![cls,
+                                                 presentSystemModalFunctionBar: bar
+                                                 systemTrayItemIdentifier: ident];
+                        },
+                    }
                 }
             }
             extern fn objc_touch_bar_make_item_for_identifier(this: &mut Object, _cmd: Sel,
