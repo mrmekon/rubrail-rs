@@ -176,5 +176,5 @@ fn main() {
     populate(bar_rc.clone(), 1, stopper);
 
     // Enter OS X application loop.
-    nsapp.run(fruitbasket::RunPeriod::Forever);
+    nsapp.run(fruitbasket::RunPeriod::Forever).expect("Failed to launch app");
 }
