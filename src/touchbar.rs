@@ -357,7 +357,7 @@ struct InternalItem {
     view: *mut Object,
     ident: Ident,
     control: Option<*mut Object>,
-    scrubber: Option<Rc<TScrubberData>>,
+    scrubber: Option<Rc<dyn TScrubberData>>,
     button_cb: Option<ButtonCb>,
     slider_cb: Option<SliderCb>,
     swipe_cb: Option<SwipeCb>,
@@ -546,7 +546,7 @@ impl RustTouchbarDelegateWrapper {
             None => None,
         }
     }
-    fn find_scrubber_callbacks(&self, scrubber: u64) -> Option<&Rc<TScrubberData>> {
+    fn find_scrubber_callbacks(&self, scrubber: u64) -> Option<&Rc<dyn TScrubberData>> {
         match self.item_map.values().into_iter().filter(|x| {
             x._type == ItemType::Scrubber && x.control.unwrap() as u64 == scrubber
         }).next() {
@@ -794,7 +794,7 @@ impl TTouchbar for Touchbar {
         }
     }
 
-    fn create_text_scrubber(&mut self, data: Rc<TScrubberData>) -> ItemId {
+    fn create_text_scrubber(&mut self, data: Rc<dyn TScrubberData>) -> ItemId {
         unsafe {
             let ident = self.generate_ident();
             let cls = RRCustomTouchBarItem::class();

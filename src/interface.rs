@@ -45,7 +45,7 @@ pub type ItemId = u64;
 /// # Arguments
 ///
 /// * first - `ItemId` of the button that was pressed
-pub type ButtonCb = Box<Fn(&ItemId)>;
+pub type ButtonCb = Box<dyn Fn(&ItemId)>;
 
 /// A callback that is called when the value of a slide on a Touch Bar changes
 ///
@@ -56,7 +56,7 @@ pub type ButtonCb = Box<Fn(&ItemId)>;
 ///
 /// * first - `ItemId` of the slider that was changed
 /// * second - Current value of the slider
-pub type SliderCb = Box<Fn(&ItemId, f64)>;
+pub type SliderCb = Box<dyn Fn(&ItemId, f64)>;
 
 /// A callback that is called when an item is swiped
 ///
@@ -70,7 +70,7 @@ pub type SliderCb = Box<Fn(&ItemId, f64)>;
 /// * second - `SwipeState` representing the current gesture's lifecycle
 /// * third - Horizontal translation of the swipe, in pixels (positive is right,
 ///   negative is left).
-pub type SwipeCb = Box<Fn(&ItemId, SwipeState, f64)>;
+pub type SwipeCb = Box<dyn Fn(&ItemId, SwipeState, f64)>;
 
 /// An allocated image that can be added to items
 ///
@@ -411,7 +411,7 @@ pub trait TTouchbar {
     /// # Returns
     ///
     /// A newly allocated scrubber item
-    fn create_text_scrubber(&mut self, data: Rc<TScrubberData>) -> ItemId {0}
+    fn create_text_scrubber(&mut self, data: Rc<dyn TScrubberData>) -> ItemId {0}
 
     /// Selects the given index in a scrubber
     ///
