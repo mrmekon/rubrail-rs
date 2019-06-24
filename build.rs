@@ -13,9 +13,11 @@ fn add_xcode_private_framework_path() {
         format!("{}/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/PrivateFrameworks/",
                 xcode_dir),
         "/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/System/Library/PrivateFrameworks/DFRFoundation.framework/".into(),
+        "/System/Library/PrivateFrameworks/".into(),
     ];
     let framework_dir = private_framework_dirs.iter().filter(|dir| {
-        std::path::Path::new(dir).is_dir()
+        let fwork = format!("{}/DFRFoundation.framework", dir);
+        std::path::Path::new(&fwork).is_dir()
     }).next().expect("XCode PrivateFramework directory not found.");
 
     println!("XCode PrivateFramework dir: {}", framework_dir);
