@@ -10,6 +10,7 @@ repository = "https://github.com/mrmekon/rubrail-rs"
 documentation = "https://mrmekon.github.io/rubrail-rs/rubrail/"
 license = "Apache-2.0"
 build = "build.rs"
+readme = "README.md"
 
 [lib]
 name = "rubrail"
