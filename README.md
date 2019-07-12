@@ -8,7 +8,7 @@ It creates a persistent icon in the 'Control Strip' region on the right side of 
 Using a pure-Rust API, you can create Touch Bar UIs with the most common items: Buttons, Labels, Sliders, Scrubbers (horizontally scrolling text selections), and recursive menus.
 
 Source for following screencast in `examples/example.rs`
-<img src="https://github.com/mrmekon/rubrail-rs/blob/master/docs/screencast.gif" width="1200">
+<img src="https://raw.githubusercontent.com/mrmekon/rubrail-rs/master/docs/screencast.gif" width="1200">
 
 ## Run the example
 
