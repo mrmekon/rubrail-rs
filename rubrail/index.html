@@ -1,0 +1,58 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="API documentation for the Rust `rubrail` crate."><meta name="keywords" content="rust, rustlang, rust-lang, rubrail"><title>rubrail - Rust</title><link rel="stylesheet" type="text/css" href="../normalize.css"><link rel="stylesheet" type="text/css" href="../rustdoc.css" id="mainThemeStyle"><link rel="stylesheet" type="text/css" href="../dark.css"><link rel="stylesheet" type="text/css" href="../light.css" id="themeStyle"><script src="../storage.js"></script><noscript><link rel="stylesheet" href="../noscript.css"></noscript><link rel="shortcut icon" href="../favicon.ico"><style type="text/css">#crate-search{background-image:url("../down-arrow.svg");}</style></head><body class="rustdoc mod"><!--[if lte IE 8]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="sidebar-menu">&#9776;</div><a href='../rubrail/index.html'><div class='logo-container'><img src='../rust-logo.png' alt='logo'></div></a><p class='location'>Crate rubrail</p><div class="sidebar-elems"><a id='all-types' href='all.html'><p>See all rubrail's items</p></a><div class="block items"><ul><li><a href="#modules">Modules</a></li><li><a href="#macros">Macros</a></li><li><a href="#enums">Enums</a></li><li><a href="#traits">Traits</a></li><li><a href="#types">Type Definitions</a></li></ul></div><p class='location'></p><script>window.sidebarCurrent = {name: 'rubrail', ty: 'mod', relpath: '../'};</script></div></nav><div class="theme-picker"><button id="theme-picker" aria-label="Pick another theme!"><img src="../brush.svg" width="18" alt="Pick another theme!"></button><div id="theme-choices"></div></div><script src="../theme.js"></script><nav class="sub"><form class="search-form js-only"><div class="search-container"><div><select id="crate-search"><option value="All crates">All crates</option></select><input class="search-input" name="search" autocomplete="off" spellcheck="false" placeholder="Click or press ‘S’ to search, ‘?’ for more options…" type="search"></div><a id="settings-menu" href="../settings.html"><img src="../wheel.svg" width="18" alt="Change settings"></a></div></form></nav><section id="main" class="content"><h1 class='fqn'><span class='out-of-band'><span id='render-detail'><a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">[<span class='inner'>&#x2212;</span>]</a></span><a class='srclink' href='../src/rubrail/lib.rs.html#1-113' title='goto source code'>[src]</a></span><span class='in-band'>Crate <a class="mod" href=''>rubrail</a></span></h1><div class='docblock'><h1 id="rubrail" class="section-header"><a href="#rubrail">Rubrail</a></h1>
+<p>Rubrail is a library for building persistent, always-available UIs for the
+Mac Touch Bar.</p>
+<p>Rubrail uses <strong>private</strong> Apple APIs to add an expandable icon to the Touch
+Bar's &quot;Control Strip&quot; region, the section that is, by default, always
+displayed on the right side of the bar.  This lets you create a Touch Bar
+menu that is always available, regardless of which app is currently in
+focus.  It supports a variety of common UI elements, including recursive
+&quot;popbar&quot; submenus, and uses callbacks to your own functions or closures to
+inform your app of touch interactions.</p>
+<h1 id="getting-rubrail" class="section-header"><a href="#getting-rubrail">Getting Rubrail</a></h1>
+<p><a href="https://crates.io/crates/rubrail">Cargo Crate</a></p>
+<p><a href="https://github.com/mrmekon/rubrail-rs">GitHub Source</a></p>
+<h1 id="execution-environment" class="section-header"><a href="#execution-environment">Execution Environment</a></h1>
+<p>Rubrail can only communicate with Apple's Touch Bar service when it is
+executed from a Mac Application environment: a valid <em>.app</em> bundle with an
+<em>Info.plist</em> and the correct directory structure.</p>
+<p>When run outside of an app bundle, like when running with <code>cargo run</code>,
+Rubrail will work correctly behind the scenes, but your Touch Bar will not
+be registered with the system and will not display on the Control Strip,
+making it inaccessible to the user.</p>
+<p>The included example uses <a href="https://github.com/mrmekon/fruitbasket">fruitbasket</a>
+to automatically bundle itself into an OS X app at runtime.  You can run the
+example with:</p>
+<p><code>$ cargo test &amp;&amp; cargo run --example example</code></p>
+<h1 id="memory-management" class="section-header"><a href="#memory-management">Memory Management</a></h1>
+<p>Rubrail manually manages the lifecycle of allocated Foundation and Cocoa
+elements (the Objective-C classes that provide the UI features).  Because of
+this, it is possible to leak memory.  Care should be taken to use the API
+as intended to avoid leaks.</p>
+<p>The internal memory allocation strategy is to freely allocate objects
+whenever a <em>create*()</em> function is called, to associate all allocated
+objects with a bar, and to register that bar with the system.  If the bar
+is replaced (by registering a new bar with the sytem), the replacement
+logic is responsible for recursively deallocating all items associated with
+the bar and its subbars, and then deallocating the bar itself.</p>
+<p>Any objects created with a <em>create*()</em> function that are never added to a
+bar that is set as the system bar will be leaked.</p>
+</div><h2 id='modules' class='section-header'><a href="#modules">Modules</a></h2>
+<table><tr class='module-item'><td><a class="mod" href="util/index.html" title='rubrail::util mod'>util</a></td><td class='docblock-short'><p>Utility functions for working with the Apple/TouchBar environment</p>
+</td></tr></table><h2 id='macros' class='section-header'><a href="#macros">Macros</a></h2>
+<table><tr class='module-item'><td><a class="macro" href="macro.objc_subclass.html" title='rubrail::objc_subclass macro'>objc_subclass</a></td><td class='docblock-short'><p>Wrap an Objective-C class in a subclass that tracks allocations</p>
+</td></tr></table><h2 id='enums' class='section-header'><a href="#enums">Enums</a></h2>
+<table><tr class='module-item'><td><a class="enum" href="enum.ImageTemplate.html" title='rubrail::ImageTemplate enum'>ImageTemplate</a></td><td class='docblock-short'><p>Identifiers for Apple's standard button image templates</p>
+</td></tr><tr class='module-item'><td><a class="enum" href="enum.SpacerType.html" title='rubrail::SpacerType enum'>SpacerType</a></td><td class='docblock-short'><p>Identifiers for the type of spacing available between items</p>
+</td></tr><tr class='module-item'><td><a class="enum" href="enum.SwipeState.html" title='rubrail::SwipeState enum'>SwipeState</a></td><td class='docblock-short'><p>State of the current swipe gesture on an item</p>
+</td></tr></table><h2 id='traits' class='section-header'><a href="#traits">Traits</a></h2>
+<table><tr class='module-item'><td><a class="trait" href="trait.TScrubberData.html" title='rubrail::TScrubberData trait'>TScrubberData</a></td><td class='docblock-short'><p>The callback API for managing data in a Scrubber</p>
+</td></tr><tr class='module-item'><td><a class="trait" href="trait.TTouchbar.html" title='rubrail::TTouchbar trait'>TTouchbar</a></td><td class='docblock-short'><p>API for creating, managing, and getting feedback from Touch Bar UIs</p>
+</td></tr></table><h2 id='types' class='section-header'><a href="#types">Type Definitions</a></h2>
+<table><tr class='module-item'><td><a class="type" href="type.BarId.html" title='rubrail::BarId type'>BarId</a></td><td class='docblock-short'><p>Reference to a horizontal bar created by a <code>TTouchbar</code></p>
+</td></tr><tr class='module-item'><td><a class="type" href="type.ButtonCb.html" title='rubrail::ButtonCb type'>ButtonCb</a></td><td class='docblock-short'><p>A callback that is called when a button on a Touch Bar is pressed</p>
+</td></tr><tr class='module-item'><td><a class="type" href="type.ItemId.html" title='rubrail::ItemId type'>ItemId</a></td><td class='docblock-short'><p>Reference to an item that can be added to a bar created by a <code>TTouchbar</code></p>
+</td></tr><tr class='module-item'><td><a class="type" href="type.SliderCb.html" title='rubrail::SliderCb type'>SliderCb</a></td><td class='docblock-short'><p>A callback that is called when the value of a slide on a Touch Bar changes</p>
+</td></tr><tr class='module-item'><td><a class="type" href="type.SwipeCb.html" title='rubrail::SwipeCb type'>SwipeCb</a></td><td class='docblock-short'><p>A callback that is called when an item is swiped</p>
+</td></tr><tr class='module-item'><td><a class="type" href="type.Touchbar.html" title='rubrail::Touchbar type'>Touchbar</a></td><td class='docblock-short'><p>Controller for creating and using Touch Bar UIs</p>
+</td></tr><tr class='module-item'><td><a class="type" href="type.TouchbarImage.html" title='rubrail::TouchbarImage type'>TouchbarImage</a></td><td class='docblock-short'><p>An allocated image that can be added to items</p>
+</td></tr></table></section><section id="search" class="content hidden"></section><section class="footer"></section><aside id="help" class="hidden"><div><h1 class="hidden">Help</h1><div class="shortcuts"><h2>Keyboard Shortcuts</h2><dl><dt><kbd>?</kbd></dt><dd>Show this help dialog</dd><dt><kbd>S</kbd></dt><dd>Focus the search field</dd><dt><kbd>↑</kbd></dt><dd>Move up in search results</dd><dt><kbd>↓</kbd></dt><dd>Move down in search results</dd><dt><kbd>↹</kbd></dt><dd>Switch tab</dd><dt><kbd>&#9166;</kbd></dt><dd>Go to active search result</dd><dt><kbd>+</kbd></dt><dd>Expand all sections</dd><dt><kbd>-</kbd></dt><dd>Collapse all sections</dd></dl></div><div class="infos"><h2>Search Tricks</h2><p>Prefix searches with a type followed by a colon (e.g., <code>fn:</code>) to restrict the search to a given type.</p><p>Accepted types are: <code>fn</code>, <code>mod</code>, <code>struct</code>, <code>enum</code>, <code>trait</code>, <code>type</code>, <code>macro</code>, and <code>const</code>.</p><p>Search functions by type signature (e.g., <code>vec -> usize</code> or <code>* -> vec</code>)</p><p>Search multiple things at once by splitting your query with comma (e.g., <code>str,u8</code> or <code>String,struct:Vec,test</code>)</p></div></div></aside><script>window.rootPath = "../";window.currentCrate = "rubrail";</script><script src="../aliases.js"></script><script src="../main.js"></script><script defer src="../search-index.js"></script></body></html>
