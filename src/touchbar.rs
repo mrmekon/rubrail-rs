@@ -1,7 +1,6 @@
 extern crate objc;
 extern crate objc_foundation;
 extern crate objc_id;
-extern crate cocoa;
 
 use super::interface::*;
 
@@ -15,10 +14,6 @@ use objc::Message;
 use objc::declare::ClassDecl;
 use objc::runtime::{Class, Object, Sel};
 use self::objc_foundation::{INSObject, NSObject};
-use self::cocoa::base::{nil, YES, NO, SEL};
-use self::cocoa::foundation::NSString;
-use self::cocoa::foundation::{NSRect, NSPoint, NSSize};
-use self::cocoa::appkit::{NSApp, NSImage};
 use self::objc_id::Id;
 use self::objc_id::Shared;
 
@@ -59,6 +54,120 @@ const IDENT_PREFIX: &'static str = "com.trevorbentley.";
 /// }
 /// ```
 pub type Touchbar = Box<RustTouchbarDelegateWrapper>;
+
+
+/////
+///// Simulate 'cocoa' crate
+/////
+///// Originally used 'cocoa' crate for some AppKit stuff.  To minimize
+///// dependencies, the things below are either copied from the cocoa
+///// crate, or minimally reimplemented
+/////
+#[allow(non_upper_case_globals)]
+const nil: *mut Object = 0 as *mut Object;
+const YES: i8 = 1i8;
+const NO: i8 = 0i8;
+
+
+#[allow(non_snake_case)]
+unsafe fn NSApp() -> *mut Object {
+    let cls = Class::get("NSApplication").unwrap();
+    msg_send![cls, sharedApplication]
+}
+
+//             let res = NSString::alloc(nil).init_str(name);
+struct NSString(*mut Object);
+impl NSString {
+    unsafe fn alloc(_: *mut Object) -> NSString {
+        let cls = Class::get("NSString").unwrap();
+        NSString(msg_send![cls, alloc])
+    }
+    unsafe fn init_str(self, s: &str) -> *mut Object {
+        msg_send![self.0, initWithBytes: s.as_ptr() length: s.len() encoding: 4]
+    }
+}
+
+// let objc_image = NSImage::alloc(nil).initWithContentsOfFile_(filename);
+struct NSImage(*mut Object);
+impl NSImage {
+    unsafe fn alloc(_: *mut Object) -> NSImage {
+        let cls = Class::get("NSImage").unwrap();
+        NSImage(msg_send![cls, alloc])
+    }
+    #[allow(non_snake_case)]
+    unsafe fn initWithContentsOfFile_(self, filename: *mut Object) -> *mut Object {
+        msg_send![self.0, initWithContentsOfFile: filename]
+    }
+}
+
+
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct NSPoint {
+    pub x: f64,
+    pub y: f64,
+}
+
+impl NSPoint {
+    #[inline]
+    pub fn new(x: f64, y: f64) -> NSPoint {
+        NSPoint {
+            x: x,
+            y: y,
+        }
+    }
+}
+unsafe impl objc::Encode for NSPoint {
+    fn encode() -> objc::Encoding {
+        let encoding = format!("{{CGPoint={}{}}}",
+                               f64::encode().as_str(),
+                               f64::encode().as_str());
+        unsafe { objc::Encoding::from_str(&encoding) }
+    }
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct NSSize {
+    pub width: f64,
+    pub height: f64,
+}
+
+impl NSSize {
+    #[inline]
+    pub fn new(width: f64, height: f64) -> NSSize {
+        NSSize {
+            width: width,
+            height: height,
+        }
+    }
+}
+unsafe impl objc::Encode for NSSize {
+    fn encode() -> objc::Encoding {
+        let encoding = format!("{{CGSize={}{}}}",
+                               f64::encode().as_str(),
+                               f64::encode().as_str());
+        unsafe { objc::Encoding::from_str(&encoding) }
+    }
+}
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct NSRect {
+    pub origin: NSPoint,
+    pub size: NSSize,
+}
+impl NSRect {
+    pub fn new(origin: NSPoint, size: NSSize) -> NSRect {
+        NSRect {
+            origin: origin,
+            size: size
+        }
+    }
+}
+
+/////
+///// End simulate 'cocoa' crate
+/////
+
 
 pub type Ident = u64;
 
@@ -123,14 +232,13 @@ pub mod util {
     //! Mac environments.
 
     extern crate libc;
-    extern crate cocoa;
     use super::ItemId;
     use std::ptr;
     use std::ffi::CStr;
     use objc::runtime::Object;
     use objc::runtime::Class;
-    use self::cocoa::foundation::NSString;
-    use self::cocoa::base::nil;
+    use super::NSString;
+    use super::nil;
     use super::AppKitVersion;
 
     #[allow(dead_code)]
@@ -416,7 +524,7 @@ impl RustTouchbarDelegateWrapper {
         }
     }
     fn alloc_button(&mut self, image: Option<&TouchbarImage>, text: Option<&str>,
-                    target: *mut Object, sel: SEL) -> *mut Object {
+                    target: *mut Object, sel: Sel) -> *mut Object {
         unsafe {
             let text = match text {
                 Some(s) => NSString::alloc(nil).init_str(s),
