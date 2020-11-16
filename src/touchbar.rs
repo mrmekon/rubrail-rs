@@ -7,7 +7,7 @@ use super::interface::*;
 use std::fmt;
 use std::rc::Rc;
 use std::cell::Cell;
-use std::sync::{Once, ONCE_INIT};
+use std::sync::Once;
 use std::collections::BTreeMap;
 
 use objc::Message;
@@ -1174,7 +1174,7 @@ impl ObjcAppDelegate {}
 
 unsafe impl Message for ObjcAppDelegate { }
 
-static OBJC_SUBCLASS_REGISTER_CLASS: Once = ONCE_INIT;
+static OBJC_SUBCLASS_REGISTER_CLASS: Once = Once::new();
 
 impl INSObject for ObjcAppDelegate {
     fn class() -> &'static Class {
