@@ -201,7 +201,10 @@ impl AppKitVersion {
             1504 => (10,12), // Sierra
             1561 => (10,13), // High Sierra
             1671 => (10,14), // Mojave
-            2022 => (11,2),   // Big Sur
+            2022 => (11,0),  // Big Sur
+            2113 => (12,0),  // Monterey
+            2299 => (13,0),  // Ventura
+
             _ => (0,0),
         };
         AppKitVersion {
